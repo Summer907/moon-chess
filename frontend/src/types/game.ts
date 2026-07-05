@@ -47,6 +47,5 @@ export interface GameState {
 
 export interface CreateGameRequest {
   first_player?: Player;
-  draw_mode?: "repetition";
   max_moves?: number;
 }

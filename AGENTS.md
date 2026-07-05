@@ -22,11 +22,11 @@ Use 4-space indentation, type hints, `snake_case` functions, and explicit model 
 
 ## Testing Guidelines
 
-Backend tests use pytest. Name files `test_*.py` and functions `test_*`. Add or update tests whenever rule behavior changes, especially around removals, win priority, legal moves, draws, and repetition signatures. Run `python -m pytest -q` from `backend/` before backend submissions. For frontend changes, run `npm run build`.
+Backend tests use pytest. Name files `test_*.py` and functions `test_*`. Add or update tests whenever rule behavior changes, especially around removals, win priority, legal moves, draws, and max-move limits. Run `python -m pytest -q` from `backend/` before backend submissions. For frontend changes, run `npm run build`.
 
 ## Commit & Pull Request Guidelines
 
-Git history currently uses Conventional Commit style, for example `feat: 实现月亮棋演示程序`. Prefer concise messages like `fix: correct repetition draw signature` or `test: add fourteenth-move coverage`. Pull requests should describe behavior changes, list verification commands, link related issues, and include screenshots or short recordings for visible UI changes.
+Git history currently uses Conventional Commit style, for example `feat: 实现月亮棋演示程序`. Prefer concise messages like `fix: correct fourteenth-move draw` or `test: add fourteenth-move coverage`. Pull requests should describe behavior changes, list verification commands, link related issues, and include screenshots or short recordings for visible UI changes.
 
 ## Architecture Notes
 

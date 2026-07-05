@@ -41,7 +41,6 @@ def create_game(request: CreateGameRequest | None = None) -> GameState:
     payload = request or CreateGameRequest()
     return store.create(
         first_player=payload.first_player,
-        draw_mode=payload.draw_mode,
         max_moves=payload.max_moves,
     )
 

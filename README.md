@@ -83,4 +83,3 @@ npm run build
 - 前端只展示后端返回的 `GameState`，不自行推导 `pending_removal`、`upcoming_removal`、`legal_moves`、`winner`、`winning_line`、`current_winning_moves` 或 `opponent_real_threats`。
 - 第 14 手，也就是后手第 7 手结束后，如果仍未分出胜负，则判平局；胜利判断优先于第 14 手平局。
 - `POST /api/games` 的 `max_moves` 保留为兼容字段，但当前规则固定为 14。
-- repetition draw 仍使用“当前行动方 + X 有序位置 + O 有序位置”的局面签名，棋子年龄顺序会影响签名。

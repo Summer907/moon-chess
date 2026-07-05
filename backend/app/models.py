@@ -7,7 +7,6 @@ from pydantic import BaseModel, Field
 
 Player = Literal["X", "O"]
 GameStatus = Literal["playing", "won", "draw"]
-DrawMode = Literal["repetition"]
 
 
 class Piece(BaseModel):
@@ -56,7 +55,6 @@ class GameState(BaseModel):
 
 class CreateGameRequest(BaseModel):
     first_player: Player = "X"
-    draw_mode: DrawMode = "repetition"
     max_moves: int = Field(default=14, ge=14, le=14)
 
 

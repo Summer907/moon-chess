@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import uuid4
 
-from .models import Analysis, DrawMode, GameState, MoveEvent, Piece, Player
+from .models import Analysis, GameState, MoveEvent, Piece, Player
 
 
 WINNING_LINES: tuple[tuple[int, int, int], ...] = (
@@ -43,7 +43,6 @@ def winning_line_for(player: Player, pieces: list[Piece]) -> list[int] | None:
 @dataclass
 class GameConfig:
     first_player: Player = "X"
-    draw_mode: DrawMode = "repetition"
     max_moves: int = DRAW_AFTER_MOVES
 
 
@@ -52,11 +51,10 @@ class MoonChessGame:
         self,
         game_id: str | None = None,
         first_player: Player = "X",
-        draw_mode: DrawMode = "repetition",
         max_moves: int = DRAW_AFTER_MOVES,
     ) -> None:
         self.game_id = game_id or str(uuid4())
-        self.config = GameConfig(first_player=first_player, draw_mode=draw_mode, max_moves=max_moves)
+        self.config = GameConfig(first_player=first_player, max_moves=max_moves)
         self.current_player: Player = first_player
         self.move_number = 0
         self.pieces: list[Piece] = []
@@ -64,7 +62,6 @@ class MoonChessGame:
         self.winner: Player | None = None
         self.winning_line: list[int] | None = None
         self.history: list[MoveEvent] = []
-        self._seen_signatures: set[tuple[Player, tuple[int, ...], tuple[int, ...]]] = {self.signature()}
 
     def state(self) -> GameState:
         pending = self.pending_removal() if self.status == "playing" else None
@@ -143,12 +140,6 @@ class MoonChessGame:
 
         if self.move_number >= self.config.max_moves:
             self.status = "draw"
-        elif self.config.draw_mode == "repetition":
-            signature = self.signature()
-            if signature in self._seen_signatures:
-                self.status = "draw"
-            else:
-                self._seen_signatures.add(signature)
 
         return self.state()
 
@@ -190,17 +181,6 @@ class MoonChessGame:
         pieces_after_removal = self._pieces_without(pending, source_pieces)
         occupied = {piece.position for piece in pieces_after_removal}
         return [position for position in range(1, 10) if position not in occupied]
-
-    def signature(
-        self,
-        current_player: Player | None = None,
-        pieces: list[Piece] | None = None,
-    ) -> tuple[Player, tuple[int, ...], tuple[int, ...]]:
-        source_pieces = pieces or self.pieces
-        player_to_move = current_player or self.current_player
-        x_positions = tuple(piece.position for piece in sorted_player_pieces(source_pieces, "X"))
-        o_positions = tuple(piece.position for piece in sorted_player_pieces(source_pieces, "O"))
-        return (player_to_move, x_positions, o_positions)
 
     def analysis(self) -> Analysis:
         if self.status != "playing":
@@ -343,7 +323,6 @@ class MoonChessGame:
         self.winner = None
         self.winning_line = None
         self.history = []
-        self._seen_signatures = {self.signature()}
 
     def _replay_event(self, event: MoveEvent) -> None:
         if self.status != "playing":
@@ -359,12 +338,6 @@ class MoonChessGame:
         self.current_player = other_player(event.player)
         if self.move_number >= self.config.max_moves:
             self.status = "draw"
-        elif self.config.draw_mode == "repetition":
-            signature = self.signature()
-            if signature in self._seen_signatures:
-                self.status = "draw"
-            else:
-                self._seen_signatures.add(signature)
 
 
 class GameStore:
@@ -374,10 +347,9 @@ class GameStore:
     def create(
         self,
         first_player: Player = "X",
-        draw_mode: DrawMode = "repetition",
         max_moves: int = DRAW_AFTER_MOVES,
     ) -> GameState:
-        game = MoonChessGame(first_player=first_player, draw_mode=draw_mode, max_moves=max_moves)
+        game = MoonChessGame(first_player=first_player, max_moves=max_moves)
         self._games[game.game_id] = game
         return game.state()
 

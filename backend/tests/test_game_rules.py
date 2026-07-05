@@ -106,8 +106,6 @@ def test_win_is_not_checked_before_pending_removal() -> None:
         Piece(id="O1", player="O", position=5, order=1),
         Piece(id="O2", player="O", position=6, order=2),
     ]
-    game._seen_signatures = {game.signature()}
-
     state = game.move(4)
 
     assert state.status == "playing"
@@ -139,31 +137,15 @@ def test_legal_moves_are_computed_after_pending_removal() -> None:
     assert state.legal_moves == [1, 3, 7, 8]
 
 
-def test_repetition_draw_uses_ordered_piece_positions_in_signature() -> None:
-    game = game_after_six()
-    simulated_pieces = game.pieces + [Piece(id="X4", player="X", position=8, order=4)]
-    o_pending = game.pending_removal("O", simulated_pieces)
-    assert o_pending is not None
-    simulated_pieces = game._pieces_without(o_pending, simulated_pieces)
-    game._seen_signatures.add(game.signature("O", simulated_pieces))
+def test_thirteenth_move_does_not_draw_without_winner() -> None:
+    game = MoonChessGame()
+    moves = [1, 2, 3, 4, 5, 7, 1, 9, 8, 2, 3, 4, 1]
 
-    state = game.move(8)
+    state = play(game, moves)
 
-    assert state.status == "draw"
-
-    signature_game = MoonChessGame()
-    same_occupied_cells_a = [
-        Piece(id="X1", player="X", position=1, order=1),
-        Piece(id="X2", player="X", position=2, order=2),
-        Piece(id="O1", player="O", position=5, order=1),
-    ]
-    same_occupied_cells_b = [
-        Piece(id="X1", player="X", position=2, order=1),
-        Piece(id="X2", player="X", position=1, order=2),
-        Piece(id="O1", player="O", position=5, order=1),
-    ]
-    assert {piece.position for piece in same_occupied_cells_a} == {piece.position for piece in same_occupied_cells_b}
-    assert signature_game.signature("X", same_occupied_cells_a) != signature_game.signature("X", same_occupied_cells_b)
+    assert state.move_number == 13
+    assert state.status == "playing"
+    assert state.winner is None
 
 
 def test_fourteenth_move_draws_if_no_winner() -> None:
@@ -188,8 +170,6 @@ def test_fourteenth_move_win_takes_priority_over_draw() -> None:
         Piece(id="O1", player="O", position=1, order=1),
         Piece(id="O2", player="O", position=2, order=2),
     ]
-    game._seen_signatures = {game.signature()}
-
     state = game.move(3)
 
     assert state.move_number == 14
