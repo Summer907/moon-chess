@@ -132,13 +132,6 @@ button {
   font-weight: 700;
 }
 
-.main-layout {
-  display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(320px, 420px);
-  gap: 22px;
-  align-items: stretch;
-}
-
 .ai-main-layout {
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(340px, 460px);
@@ -151,19 +144,53 @@ button {
   gap: 22px;
 }
 
-.bottom-layout {
+.game-main-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 360px) 1fr;
+  grid-template-columns: minmax(360px, 1fr) minmax(340px, 420px);
   gap: 22px;
+  align-items: start;
+}
+
+.game-board-slot {
+  min-width: 0;
+}
+
+.game-side-stack {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: 22px;
+  align-content: start;
+  align-self: start;
+  height: var(--game-board-panel-height, auto);
+  max-height: var(--game-board-panel-height, none);
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.game-side-stack--duo {
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.game-side-stack--duo > * {
+  min-height: 0;
+}
+
+.game-side-stack--duo .game-settings-card {
+  overflow: auto;
+}
+
+.game-history-row {
   margin-top: 22px;
-  align-items: stretch;
 }
 
 .board-panel,
-.analysis-panel,
 .ai-panel,
 .history-panel,
-.control-panel,
+.game-settings-card,
+.game-status-card,
+.game-analysis-card,
 .loading-panel {
   border: 1px solid #d7dde5;
   border-radius: 8px;
@@ -306,6 +333,14 @@ button {
   background: #c2410c;
 }
 
+.piece-traveler .piece-label {
+  background: #dc2626;
+}
+
+.piece-columbina .piece-label {
+  background: #2563eb;
+}
+
 .cell-hints {
   position: absolute;
   right: 6px;
@@ -342,10 +377,11 @@ button {
   background: #f59e0b;
 }
 
-.analysis-panel,
 .ai-panel,
 .history-panel,
-.control-panel,
+.game-settings-card,
+.game-status-card,
+.game-analysis-card,
 .loading-panel {
   padding: 18px;
 }
@@ -364,11 +400,48 @@ button {
   overflow: auto;
 }
 
-.analysis-panel {
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  container-type: inline-size;
+.game-status-card,
+.game-settings-card,
+.game-analysis-card {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-height: 0;
+}
+
+.game-status-card .section-title,
+.game-settings-card .section-title,
+.game-analysis-card .section-title {
+  margin-bottom: 0;
+}
+
+.game-settings-card {
+  gap: 12px;
+}
+
+.game-status-grid {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.game-status-grid div {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.game-status-grid dt {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.game-status-grid dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 900;
 }
 
 .section-title {
@@ -417,6 +490,10 @@ button {
   padding-left: 22px;
 }
 
+.game-analysis-card .explanation-list {
+  margin-bottom: 0;
+}
+
 .history-list {
   margin: 0;
   padding-left: 0;
@@ -430,21 +507,16 @@ button {
 }
 
 .result-banner {
-  position: absolute;
-  top: 82.5%;
-  right: 18px;
-  left: 18px;
-  margin-top: 0;
-  padding: 16px 16px 16px 18px;
+  margin-top: 2px;
+  padding: 12px 14px;
   border-left: 6px solid #17202a;
   border-radius: 8px;
-  transform: translateY(-50%);
 }
 
 .result-banner strong {
   display: block;
   margin-top: 4px;
-  font-size: 30px;
+  font-size: 24px;
   line-height: 1.15;
   letter-spacing: 0;
 }
@@ -479,19 +551,90 @@ button {
   color: #b45309;
 }
 
-@container (max-width: 460px) {
-  .result-banner {
-    position: static;
-    margin-top: 18px;
-    transform: none;
-  }
+.game-result p {
+  margin-top: 6px;
 }
 
-.control-panel {
+.settings-field {
   display: grid;
-  height: var(--utility-panel-height);
-  gap: 14px;
-  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.settings-field legend {
+  margin: 0 0 2px;
+  padding: 0;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.difficulty-control {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.segmented-control label {
+  position: relative;
+  min-width: 0;
+}
+
+.segmented-control input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented-control input:disabled {
+  cursor: default;
+}
+
+.segmented-control span {
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17202a;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+
+.segmented-control input:checked + span {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.segmented-control input:focus-visible + span {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.segmented-control input:disabled + span {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: default;
+}
+
+.settings-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
 }
 
 .button-row {
@@ -691,24 +834,30 @@ button {
     margin-top: 0;
   }
 
-  .main-layout,
   .ai-main-layout,
-  .bottom-layout {
+  .game-main-layout {
     grid-template-columns: 1fr;
   }
 
-  .main-layout {
+  .game-main-layout {
     align-items: start;
   }
 
-  .analysis-panel {
-    min-height: 0;
+  .game-side-stack,
+  .game-side-stack--duo,
+  .game-side-stack--analysis {
+    grid-template-rows: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .game-side-stack--duo .game-settings-card {
+    overflow: visible;
   }
 
   .result-banner {
-    position: static;
     margin-top: 18px;
-    transform: none;
   }
 
   .board-grid {
@@ -716,6 +865,10 @@ button {
   }
 
   .analysis-grid div {
+    grid-template-columns: 112px 1fr;
+  }
+
+  .game-status-grid div {
     grid-template-columns: 112px 1fr;
   }
 
@@ -730,10 +883,12 @@ button {
   }
 
   .board-panel,
-  .analysis-panel,
   .ai-panel,
   .history-panel,
-  .control-panel {
+  .game-settings-card,
+  .game-status-card,
+  .game-analysis-card,
+  .loading-panel {
     padding: 14px;
   }
 
@@ -757,5 +912,12 @@ button {
   .analysis-grid div {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .game-status-grid div,
+  .settings-toggle-grid,
+  .segmented-control,
+  .difficulty-control {
+    grid-template-columns: 1fr;
   }
 }

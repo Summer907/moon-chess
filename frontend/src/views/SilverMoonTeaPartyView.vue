@@ -1,113 +1,271 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
-import { createGame, getHint, makeAiMove, makeMove, undo } from "../api/client";
-import AiPanel from "../components/AiPanel.vue";
-import AnalysisPanel from "../components/AnalysisPanel.vue";
-import ControlPanel from "../components/ControlPanel.vue";
+import { createGame, makeAiMove, makeMove, undo } from "../api/client";
 import GameBoard from "../components/GameBoard.vue";
-import HistoryList from "../components/HistoryList.vue";
-import type { AiLevel, AiMoveResponse, GameState } from "../types/game";
+import GameHistoryList from "../components/game/GameHistoryList.vue";
+import GameSettingsCard from "../components/game/GameSettingsCard.vue";
+import GameStatusCard from "../components/game/GameStatusCard.vue";
+import type { AiLevel, GameState, Piece, Player } from "../types/game";
+import type { TravelerSide } from "../types/display";
+import {
+  createPlayerDisplay,
+  formatPieceFull,
+  formatPieceShort,
+  formatPlayer,
+  isRoleTurn,
+  pieceDisplayClass,
+} from "../utils/playerDisplay";
+import { useElementHeightCssVar } from "../utils/useElementHeightCssVar";
+
+const THINKING_DELAYS: Record<AiLevel, { min: number; max: number }> = {
+  easy: { min: 500, max: 900 },
+  medium: { min: 800, max: 1400 },
+  hard: { min: 1200, max: 2200 },
+};
 
 const gameState = ref<GameState | null>(null);
-const aiResponse = ref<AiMoveResponse | null>(null);
 const loading = ref(false);
-const aiLoading = ref(false);
-const autoReplyTimer = ref<number | null>(null);
+const aiThinking = ref(false);
+const aiTimeoutId = ref<number | null>(null);
 const errorMessage = ref("");
 const aiLevel = ref<AiLevel>("medium");
-const autoReply = ref(false);
+const travelerSide = ref<TravelerSide>("first");
 const showCellNumbers = ref(true);
 const showLegalMoves = ref(true);
 const showWinningMoves = ref(true);
 const showThreatMoves = ref(true);
 const showRemovalPreview = ref(true);
 
-const canUndo = computed(() => Boolean(gameState.value && gameState.value.history.length > 0));
-const waitingForAutoReply = computed(() => autoReplyTimer.value !== null);
-const isBusy = computed(() => loading.value || aiLoading.value || waitingForAutoReply.value);
-const canUseAi = computed(() => Boolean(gameState.value && gameState.value.status === "playing"));
+let stateToken = 0;
 
-function clearAutoReplyTimer() {
-  if (autoReplyTimer.value !== null) {
-    window.clearTimeout(autoReplyTimer.value);
-    autoReplyTimer.value = null;
+const displayMap = computed(() => createPlayerDisplay(travelerSide.value));
+const { elementRef: boardPanelRef, heightStyle: boardHeightStyle } =
+  useElementHeightCssVar("--game-board-panel-height");
+
+const canPlace = computed(() => {
+  return Boolean(
+    gameState.value &&
+      gameState.value.status === "playing" &&
+      !loading.value &&
+      !aiThinking.value &&
+      isTravelerTurn(gameState.value),
+  );
+});
+
+const canUndo = computed(() => {
+  if (!gameState.value || loading.value) {
+    return false;
+  }
+  return undoCountForState(gameState.value) > 0;
+});
+
+const statusPillText = computed(() => {
+  if (!gameState.value) {
+    return "";
+  }
+  if (gameState.value.status === "won") {
+    return `${formatPlayer(gameState.value.winner, displayMap.value)}胜利`;
+  }
+  if (gameState.value.status === "draw") {
+    return "平局";
+  }
+  if (aiThinking.value) {
+    return "哥伦比娅思考中……";
+  }
+  return `轮到 ${formatPlayer(gameState.value.current_player, displayMap.value)}`;
+});
+
+function clearAiTimeout() {
+  if (aiTimeoutId.value !== null) {
+    window.clearTimeout(aiTimeoutId.value);
+    aiTimeoutId.value = null;
   }
 }
 
-async function runStateAction(action: () => Promise<GameState>): Promise<GameState | null> {
-  clearAutoReplyTimer();
+function invalidateAiWork(): number {
+  stateToken += 1;
+  clearAiTimeout();
+  aiThinking.value = false;
+  return stateToken;
+}
+
+function isCurrentToken(token: number): boolean {
+  return token === stateToken;
+}
+
+function isTravelerTurn(state: GameState): boolean {
+  return state.status === "playing" && isRoleTurn(state.current_player, displayMap.value, "traveler");
+}
+
+function isColumbinaTurn(state: GameState): boolean {
+  return state.status === "playing" && isRoleTurn(state.current_player, displayMap.value, "columbina");
+}
+
+function randomThinkingDelay(level: AiLevel): number {
+  const range = THINKING_DELAYS[level];
+  return Math.floor(range.min + Math.random() * (range.max - range.min + 1));
+}
+
+function playerName(player: Player): string {
+  return formatPlayer(player, displayMap.value);
+}
+
+function pieceShortName(piece: Piece): string {
+  return formatPieceShort(piece);
+}
+
+function pieceFullName(piece: Piece): string {
+  return formatPieceFull(piece, displayMap.value);
+}
+
+function pieceClassName(piece: Piece): string {
+  return pieceDisplayClass(piece, displayMap.value);
+}
+
+function undoCountForState(state: GameState): number {
+  const lastEvent = state.history[state.history.length - 1];
+  if (!lastEvent) {
+    return 0;
+  }
+
+  const lastRole = displayMap.value[lastEvent.player].role;
+  if (aiThinking.value && lastRole === "traveler") {
+    return 1;
+  }
+  if (state.status !== "playing") {
+    return lastRole === "traveler" ? 1 : state.history.length >= 2 ? 2 : 0;
+  }
+  if (isTravelerTurn(state)) {
+    return state.history.length >= 2 ? 2 : 0;
+  }
+  if (isColumbinaTurn(state) && lastRole === "traveler") {
+    return 1;
+  }
+  return 0;
+}
+
+async function startNewGame() {
+  const token = invalidateAiWork();
   loading.value = true;
   errorMessage.value = "";
+  gameState.value = null;
+
   try {
-    const state = await action();
+    const state = await createGame({ first_player: "X" });
+    if (!isCurrentToken(token)) {
+      return;
+    }
     gameState.value = state;
-    aiResponse.value = null;
-    return state;
+    scheduleAiMoveIfNeeded(state, token);
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "操作失败。";
-    return null;
+    if (isCurrentToken(token)) {
+      errorMessage.value = error instanceof Error ? error.message : "新开棋局失败。";
+    }
   } finally {
-    loading.value = false;
+    if (isCurrentToken(token)) {
+      loading.value = false;
+    }
   }
 }
 
-function startNewGame() {
-  void runStateAction(() => createGame());
-}
-
-function undoMove() {
-  if (!gameState.value || isBusy.value) {
+function updateTravelerSide(value: TravelerSide) {
+  if (travelerSide.value === value) {
     return;
   }
-  const gameId = gameState.value.game_id;
-  void runStateAction(() => undo(gameId));
+  travelerSide.value = value;
+  void startNewGame();
+}
+
+async function undoMove() {
+  if (!gameState.value || loading.value) {
+    return;
+  }
+
+  const undoCount = undoCountForState(gameState.value);
+  if (undoCount === 0) {
+    return;
+  }
+
+  const token = invalidateAiWork();
+  loading.value = true;
+  errorMessage.value = "";
+
+  try {
+    let state = gameState.value;
+    for (let index = 0; index < undoCount; index += 1) {
+      state = await undo(state.game_id);
+      if (!isCurrentToken(token)) {
+        return;
+      }
+    }
+    gameState.value = state;
+  } catch (error) {
+    if (isCurrentToken(token)) {
+      errorMessage.value = error instanceof Error ? error.message : "悔棋失败。";
+    }
+  } finally {
+    if (isCurrentToken(token)) {
+      loading.value = false;
+    }
+  }
 }
 
 async function placeAt(position: number) {
-  if (!gameState.value || gameState.value.status !== "playing" || isBusy.value) {
+  if (!gameState.value || !canPlace.value) {
     return;
   }
-  const gameId = gameState.value.game_id;
-  const state = await runStateAction(() => makeMove(gameId, position));
-  if (state && autoReply.value && state.status === "playing") {
-    scheduleAutoReply();
-  }
-}
 
-function scheduleAutoReply() {
-  clearAutoReplyTimer();
-  autoReplyTimer.value = window.setTimeout(() => {
-    autoReplyTimer.value = null;
-    void runAiMove();
-  }, 500);
-}
-
-async function showHint() {
-  if (!gameState.value || !canUseAi.value || isBusy.value) {
-    return;
-  }
+  const token = stateToken;
   const gameId = gameState.value.game_id;
-  aiLoading.value = true;
+  loading.value = true;
   errorMessage.value = "";
+
   try {
-    const response = await getHint(gameId, aiLevel.value);
-    aiResponse.value = response;
-    gameState.value = response.state;
+    const state = await makeMove(gameId, position);
+    if (!isCurrentToken(token)) {
+      return;
+    }
+    gameState.value = state;
+    scheduleAiMoveIfNeeded(state, token);
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "AI 推荐失败。";
+    if (isCurrentToken(token)) {
+      errorMessage.value = error instanceof Error ? error.message : "落子失败。";
+    }
   } finally {
-    aiLoading.value = false;
+    if (isCurrentToken(token)) {
+      loading.value = false;
+    }
   }
 }
 
-async function runAiMove() {
-  if (!gameState.value || !canUseAi.value || aiLoading.value || loading.value) {
+function scheduleAiMoveIfNeeded(state: GameState, token = stateToken) {
+  if (!isCurrentToken(token) || !isColumbinaTurn(state) || aiThinking.value) {
     return;
   }
-  clearAutoReplyTimer();
-  const gameId = gameState.value.game_id;
-  aiLoading.value = true;
+
+  clearAiTimeout();
+  aiThinking.value = true;
+  const gameId = state.game_id;
+  const moveNumber = state.move_number;
+  const delay = randomThinkingDelay(aiLevel.value);
+  aiTimeoutId.value = window.setTimeout(() => {
+    aiTimeoutId.value = null;
+    void runAiMove(gameId, moveNumber, token);
+  }, delay);
+}
+
+async function runAiMove(gameId: string, moveNumber: number, token: number) {
+  if (!isCurrentToken(token)) {
+    return;
+  }
+
+  const state = gameState.value;
+  if (!state || state.game_id !== gameId || state.move_number !== moveNumber || !isColumbinaTurn(state)) {
+    aiThinking.value = false;
+    return;
+  }
+
   errorMessage.value = "";
   try {
     const response = await makeAiMove(gameId, {
@@ -115,28 +273,27 @@ async function runAiMove() {
       seed: null,
       auto_apply: true,
     });
-    aiResponse.value = response;
+    if (!isCurrentToken(token)) {
+      return;
+    }
     gameState.value = response.state;
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "AI 落子失败。";
+    if (isCurrentToken(token)) {
+      errorMessage.value = error instanceof Error ? error.message : "哥伦比娅落子失败。";
+    }
   } finally {
-    aiLoading.value = false;
-  }
-}
-
-function updateAutoReply(value: boolean) {
-  autoReply.value = value;
-  if (!value) {
-    clearAutoReplyTimer();
+    if (isCurrentToken(token)) {
+      aiThinking.value = false;
+    }
   }
 }
 
 onMounted(() => {
-  startNewGame();
+  void startNewGame();
 });
 
 onBeforeUnmount(() => {
-  clearAutoReplyTimer();
+  invalidateAiWork();
 });
 </script>
 
@@ -144,64 +301,66 @@ onBeforeUnmount(() => {
   <header class="app-header">
     <div class="title-block">
       <h1 class="app-title">月亮棋 · 银月茶会</h1>
-      <p class="subtitle">入席执棋，与银月对弈；若想取胜，先看清哪颗月亮将要落下。</p>
+      <p class="subtitle">入席执棋，与银月对弈；若想取胜，须先看清哪颗月亮将要落下。</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
-      <span v-if="gameState.status === 'playing'">轮到 {{ gameState.current_player }}</span>
-      <span v-else-if="gameState.status === 'won'">{{ gameState.winner }} 获胜</span>
-      <span v-else>平局</span>
+      <span>{{ statusPillText }}</span>
     </div>
   </header>
 
   <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
-  <section v-if="gameState" class="ai-main-layout">
-    <GameBoard
-      :state="gameState"
-      :show-cell-numbers="showCellNumbers"
-      :show-legal-moves="showLegalMoves"
-      :show-winning-moves="showWinningMoves"
-      :show-threat-moves="showThreatMoves"
-      :show-removal-preview="showRemovalPreview"
-      :disabled="isBusy"
-      @place="placeAt"
-    />
+  <section v-if="gameState" class="game-main-layout" :style="boardHeightStyle">
+    <div ref="boardPanelRef" class="game-board-slot">
+      <GameBoard
+        :state="gameState"
+        :show-cell-numbers="showCellNumbers"
+        :show-legal-moves="showLegalMoves"
+        :show-winning-moves="showWinningMoves"
+        :show-threat-moves="showThreatMoves"
+        :show-removal-preview="showRemovalPreview"
+        :disabled="!canPlace"
+        :format-player="playerName"
+        :format-piece-label="pieceShortName"
+        :format-piece-description="pieceFullName"
+        :piece-class="pieceClassName"
+        @place="placeAt"
+      />
+    </div>
 
-    <div class="ai-side-stack">
-      <AnalysisPanel :state="gameState" />
-      <AiPanel
-        :level="aiLevel"
-        :auto-reply="autoReply"
-        :loading="isBusy"
-        :disabled="!canUseAi"
-        :response="aiResponse"
-        @hint="showHint"
-        @ai-move="runAiMove"
-        @update:level="aiLevel = $event"
-        @update:auto-reply="updateAutoReply"
+    <div class="game-side-stack game-side-stack--duo">
+      <GameStatusCard
+        :state="gameState"
+        :display-map="displayMap"
+        :ai-thinking="aiThinking"
+        :show-removal-preview="showRemovalPreview"
+      />
+      <GameSettingsCard
+        :traveler-side="travelerSide"
+        :ai-level="aiLevel"
+        :show-ai-level="true"
+        :loading="loading"
+        :can-undo="canUndo"
+        :show-cell-numbers="showCellNumbers"
+        :show-legal-moves="showLegalMoves"
+        :show-winning-moves="showWinningMoves"
+        :show-threat-moves="showThreatMoves"
+        :show-removal-preview="showRemovalPreview"
+        @new-game="startNewGame"
+        @undo="undoMove"
+        @update:traveler-side="updateTravelerSide"
+        @update:ai-level="aiLevel = $event"
+        @update:show-cell-numbers="showCellNumbers = $event"
+        @update:show-legal-moves="showLegalMoves = $event"
+        @update:show-winning-moves="showWinningMoves = $event"
+        @update:show-threat-moves="showThreatMoves = $event"
+        @update:show-removal-preview="showRemovalPreview = $event"
       />
     </div>
   </section>
 
-  <section v-if="gameState" class="bottom-layout">
-    <ControlPanel
-      :loading="isBusy"
-      :can-undo="canUndo"
-      :show-cell-numbers="showCellNumbers"
-      :show-legal-moves="showLegalMoves"
-      :show-winning-moves="showWinningMoves"
-      :show-threat-moves="showThreatMoves"
-      :show-removal-preview="showRemovalPreview"
-      @new-game="startNewGame"
-      @undo="undoMove"
-      @update:show-cell-numbers="showCellNumbers = $event"
-      @update:show-legal-moves="showLegalMoves = $event"
-      @update:show-winning-moves="showWinningMoves = $event"
-      @update:show-threat-moves="showThreatMoves = $event"
-      @update:show-removal-preview="showRemovalPreview = $event"
-    />
-
-    <HistoryList :history="gameState.history" />
+  <section v-if="gameState" class="game-history-row">
+    <GameHistoryList :history="gameState.history" :display-map="displayMap" />
   </section>
 
   <section v-else class="loading-panel">正在连接后端...</section>

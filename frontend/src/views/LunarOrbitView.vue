@@ -2,22 +2,51 @@
 import { computed, onMounted, ref } from "vue";
 
 import { createGame, makeMove, undo } from "../api/client";
-import AnalysisPanel from "../components/AnalysisPanel.vue";
-import ControlPanel from "../components/ControlPanel.vue";
 import GameBoard from "../components/GameBoard.vue";
-import HistoryList from "../components/HistoryList.vue";
-import type { GameState } from "../types/game";
+import GameHistoryList from "../components/game/GameHistoryList.vue";
+import GameSettingsCard from "../components/game/GameSettingsCard.vue";
+import GameStatusCard from "../components/game/GameStatusCard.vue";
+import LunarOrbitAnalysisCard from "../components/game/LunarOrbitAnalysisCard.vue";
+import type { TravelerSide } from "../types/display";
+import type { GameState, Piece, Player } from "../types/game";
+import {
+  createPlayerDisplay,
+  formatPieceFull,
+  formatPieceShort,
+  formatPlayer,
+  pieceDisplayClass,
+} from "../utils/playerDisplay";
+import { useElementHeightCssVar } from "../utils/useElementHeightCssVar";
 
 const gameState = ref<GameState | null>(null);
 const loading = ref(false);
 const errorMessage = ref("");
+const travelerSide = ref<TravelerSide>("first");
 const showCellNumbers = ref(true);
 const showLegalMoves = ref(true);
 const showWinningMoves = ref(true);
 const showThreatMoves = ref(true);
 const showRemovalPreview = ref(true);
 
-const canUndo = computed(() => Boolean(gameState.value && gameState.value.history.length > 0));
+const displayMap = computed(() => createPlayerDisplay(travelerSide.value));
+const { elementRef: boardPanelRef, heightStyle: boardHeightStyle } =
+  useElementHeightCssVar("--game-board-panel-height");
+
+const canPlace = computed(() => Boolean(gameState.value && gameState.value.status === "playing" && !loading.value));
+const canUndo = computed(() => Boolean(gameState.value && gameState.value.history.length > 0 && !loading.value));
+
+const statusPillText = computed(() => {
+  if (!gameState.value) {
+    return "";
+  }
+  if (gameState.value.status === "won") {
+    return `${formatPlayer(gameState.value.winner, displayMap.value)}胜利`;
+  }
+  if (gameState.value.status === "draw") {
+    return "平局";
+  }
+  return `轮到 ${formatPlayer(gameState.value.current_player, displayMap.value)}`;
+});
 
 async function runAction(action: () => Promise<GameState>) {
   loading.value = true;
@@ -51,6 +80,26 @@ function placeAt(position: number) {
   void runAction(() => makeMove(gameId, position));
 }
 
+function updateTravelerSide(value: TravelerSide) {
+  travelerSide.value = value;
+}
+
+function playerName(player: Player): string {
+  return formatPlayer(player, displayMap.value);
+}
+
+function pieceShortName(piece: Piece): string {
+  return formatPieceShort(piece);
+}
+
+function pieceFullName(piece: Piece): string {
+  return formatPieceFull(piece, displayMap.value);
+}
+
+function pieceClassName(piece: Piece): string {
+  return pieceDisplayClass(piece, displayMap.value);
+}
+
 onMounted(() => {
   startNewGame();
 });
@@ -63,48 +112,66 @@ onMounted(() => {
       <p class="subtitle">三是表象，四是本征；七，是二者交叠后的垂直超越之径。</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
-      <span v-if="gameState.status === 'playing'">轮到 {{ gameState.current_player }}</span>
-      <span v-else-if="gameState.status === 'won'">{{ gameState.winner }} 获胜</span>
-      <span v-else>平局</span>
+      <span>{{ statusPillText }}</span>
     </div>
   </header>
 
   <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
-  <section v-if="gameState" class="main-layout">
-    <GameBoard
-      :state="gameState"
-      :show-cell-numbers="showCellNumbers"
-      :show-legal-moves="showLegalMoves"
-      :show-winning-moves="showWinningMoves"
-      :show-threat-moves="showThreatMoves"
-      :show-removal-preview="showRemovalPreview"
-      :disabled="loading"
-      @place="placeAt"
-    />
+  <section v-if="gameState" class="game-main-layout" :style="boardHeightStyle">
+    <div ref="boardPanelRef" class="game-board-slot">
+      <GameBoard
+        :state="gameState"
+        :show-cell-numbers="showCellNumbers"
+        :show-legal-moves="showLegalMoves"
+        :show-winning-moves="showWinningMoves"
+        :show-threat-moves="showThreatMoves"
+        :show-removal-preview="showRemovalPreview"
+        :disabled="!canPlace"
+        :format-player="playerName"
+        :format-piece-label="pieceShortName"
+        :format-piece-description="pieceFullName"
+        :piece-class="pieceClassName"
+        @place="placeAt"
+      />
+    </div>
 
-    <AnalysisPanel :state="gameState" />
+    <div class="game-side-stack game-side-stack--analysis">
+      <GameStatusCard
+        :state="gameState"
+        :display-map="displayMap"
+        :show-removal-preview="showRemovalPreview"
+      />
+      <LunarOrbitAnalysisCard :state="gameState" :display-map="displayMap" />
+      <GameSettingsCard
+        title="推演配置"
+        new-game-label="重新推演"
+        new-game-title="清空当前棋局，重新开始一次月轨推演。"
+        undo-label="回退一步"
+        undo-title="撤回上一步推演。"
+        :traveler-side="travelerSide"
+        :show-ai-level="false"
+        :loading="loading"
+        :can-undo="canUndo"
+        :show-cell-numbers="showCellNumbers"
+        :show-legal-moves="showLegalMoves"
+        :show-winning-moves="showWinningMoves"
+        :show-threat-moves="showThreatMoves"
+        :show-removal-preview="showRemovalPreview"
+        @new-game="startNewGame"
+        @undo="undoMove"
+        @update:traveler-side="updateTravelerSide"
+        @update:show-cell-numbers="showCellNumbers = $event"
+        @update:show-legal-moves="showLegalMoves = $event"
+        @update:show-winning-moves="showWinningMoves = $event"
+        @update:show-threat-moves="showThreatMoves = $event"
+        @update:show-removal-preview="showRemovalPreview = $event"
+      />
+    </div>
   </section>
 
-  <section v-if="gameState" class="bottom-layout">
-    <ControlPanel
-      :loading="loading"
-      :can-undo="canUndo"
-      :show-cell-numbers="showCellNumbers"
-      :show-legal-moves="showLegalMoves"
-      :show-winning-moves="showWinningMoves"
-      :show-threat-moves="showThreatMoves"
-      :show-removal-preview="showRemovalPreview"
-      @new-game="startNewGame"
-      @undo="undoMove"
-      @update:show-cell-numbers="showCellNumbers = $event"
-      @update:show-legal-moves="showLegalMoves = $event"
-      @update:show-winning-moves="showWinningMoves = $event"
-      @update:show-threat-moves="showThreatMoves = $event"
-      @update:show-removal-preview="showRemovalPreview = $event"
-    />
-
-    <HistoryList :history="gameState.history" />
+  <section v-if="gameState" class="game-history-row">
+    <GameHistoryList :history="gameState.history" :display-map="displayMap" />
   </section>
 
   <section v-else class="loading-panel">正在连接后端...</section>

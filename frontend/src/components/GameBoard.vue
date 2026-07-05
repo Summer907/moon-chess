@@ -2,7 +2,7 @@
 import { computed } from "vue";
 
 import GameCell from "./GameCell.vue";
-import type { GameState, Piece } from "../types/game";
+import type { GameState, Piece, Player } from "../types/game";
 
 const props = defineProps<{
   state: GameState;
@@ -12,6 +12,10 @@ const props = defineProps<{
   showThreatMoves: boolean;
   showRemovalPreview: boolean;
   disabled: boolean;
+  formatPlayer?: (player: Player) => string;
+  formatPieceLabel?: (piece: Piece) => string;
+  formatPieceDescription?: (piece: Piece) => string;
+  pieceClass?: (piece: Piece) => string;
 }>();
 
 const emit = defineEmits<{
@@ -23,6 +27,31 @@ const removalPreview = computed(() => props.state.pending_removal ?? props.state
 
 function pieceAt(position: number): Piece | null {
   return props.state.board[position - 1] ?? null;
+}
+
+function playerText(player: Player): string {
+  return props.formatPlayer?.(player) ?? player;
+}
+
+function pieceLabel(piece: Piece | null): string | undefined {
+  if (!piece) {
+    return undefined;
+  }
+  return props.formatPieceLabel?.(piece) ?? piece.id;
+}
+
+function pieceDescription(piece: Piece | null): string | undefined {
+  if (!piece) {
+    return undefined;
+  }
+  return props.formatPieceDescription?.(piece) ?? piece.id;
+}
+
+function pieceClassName(piece: Piece | null): string | undefined {
+  if (!piece) {
+    return undefined;
+  }
+  return props.pieceClass?.(piece) ?? `piece-${piece.player}`;
 }
 
 function isPendingRemoval(piece: Piece | null): boolean {
@@ -55,11 +84,11 @@ function isOpponentRealThreat(position: number): boolean {
     <div class="board-meta">
       <div>
         <span>第 {{ state.move_number }} 手后</span>
-        <strong>当前：{{ state.current_player }}</strong>
+        <strong>当前：{{ playerText(state.current_player) }}</strong>
       </div>
       <div class="pending-text">
         消失预告：
-        <strong>{{ showRemovalPreview ? (removalPreview ? removalPreview.id : "无") : "已隐藏" }}</strong>
+        <strong>{{ showRemovalPreview ? (removalPreview ? pieceDescription(removalPreview) : "无") : "已隐藏" }}</strong>
       </div>
     </div>
 
@@ -69,6 +98,9 @@ function isOpponentRealThreat(position: number): boolean {
         :key="position"
         :position="position"
         :piece="pieceAt(position)"
+        :piece-label="pieceLabel(pieceAt(position))"
+        :piece-description="pieceDescription(pieceAt(position))"
+        :piece-class="pieceClassName(pieceAt(position))"
         :show-number="showCellNumbers"
         :is-pending-removal="isPendingRemoval(pieceAt(position))"
         :is-winning="isWinningPosition(position)"
