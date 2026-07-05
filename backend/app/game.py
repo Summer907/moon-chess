@@ -83,6 +83,21 @@ class MoonChessGame:
             analysis=self.analysis(),
         )
 
+    def clone(self, include_history: bool = True) -> MoonChessGame:
+        cloned = MoonChessGame(
+            game_id=self.game_id,
+            first_player=self.config.first_player,
+            max_moves=self.config.max_moves,
+        )
+        cloned.current_player = self.current_player
+        cloned.move_number = self.move_number
+        cloned.pieces = [piece.model_copy() for piece in self.pieces] if include_history else list(self.pieces)
+        cloned.status = self.status
+        cloned.winner = self.winner
+        cloned.winning_line = list(self.winning_line) if self.winning_line else None
+        cloned.history = [event.model_copy(deep=True) for event in self.history] if include_history else []
+        return cloned
+
     def move(self, position: int) -> GameState:
         if self.status != "playing":
             raise GameError("棋局已结束，不能继续落子。")
@@ -143,6 +158,43 @@ class MoonChessGame:
 
         return self.state()
 
+    def apply_move_for_search(self, position: int) -> None:
+        if self.status != "playing":
+            raise GameError("棋局已结束，不能继续落子。")
+
+        player = self.current_player
+        pending = self.pending_removal(player)
+        pieces_after_removal = [piece for piece in self.pieces if not pending or piece.id != pending.id]
+        occupied = {piece.position for piece in pieces_after_removal}
+        if position < 1 or position > 9 or position in occupied:
+            raise GameError(f"位置 {position} 当前不可落子。")
+
+        next_order = self._next_piece_order(player)
+        placed_piece = Piece(
+            id=f"{player}{next_order}",
+            player=player,
+            position=position,
+            order=next_order,
+        )
+        self.pieces = pieces_after_removal + [placed_piece]
+        self.move_number += 1
+
+        line = winning_line_for(player, self.pieces)
+        if line:
+            self.status = "won"
+            self.winner = player
+            self.winning_line = line
+            return
+
+        if self.move_number >= self.config.max_moves:
+            self.status = "draw"
+            return
+
+        self.current_player = other_player(self.current_player)
+        removed_piece = self.pending_removal(self.current_player)
+        if removed_piece:
+            self.pieces = [piece for piece in self.pieces if piece.id != removed_piece.id]
+
     def undo(self) -> GameState:
         if not self.history:
             return self.state()
@@ -182,6 +234,9 @@ class MoonChessGame:
         occupied = {piece.position for piece in pieces_after_removal}
         return [position for position in range(1, 10) if position not in occupied]
 
+    def winning_moves_for(self, player: Player) -> list[int]:
+        return self._winning_moves_for(player)
+
     def analysis(self) -> Analysis:
         if self.status != "playing":
             return self._finished_analysis()
@@ -189,9 +244,9 @@ class MoonChessGame:
         pending = self.pending_removal()
         upcoming = self.upcoming_removal()
         retained = sorted_player_pieces(self._pieces_without(pending), self.current_player)
-        current_winning_moves = self._winning_moves_for(self.current_player)
+        current_winning_moves = self.winning_moves_for(self.current_player)
         opponent = other_player(self.current_player)
-        opponent_real_threats = self._winning_moves_for(opponent)
+        opponent_real_threats = self.winning_moves_for(opponent)
         explanation = self._analysis_explanation(
             pending,
             upcoming,

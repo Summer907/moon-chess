@@ -1,5 +1,7 @@
 export type Player = "X" | "O";
 export type GameStatus = "playing" | "won" | "draw";
+export type AiLevel = "easy" | "medium" | "hard";
+export type AiOutcome = "win" | "draw" | "loss" | "unknown";
 
 export interface Piece {
   id: string;
@@ -48,4 +50,29 @@ export interface GameState {
 export interface CreateGameRequest {
   first_player?: Player;
   max_moves?: number;
+}
+
+export interface AiMoveRequest {
+  level?: AiLevel;
+  seed?: number | null;
+  auto_apply?: boolean;
+}
+
+export interface AiMoveEvaluation {
+  move: number;
+  score: number | null;
+  outcome: AiOutcome;
+  plies: number | null;
+  reason: string;
+}
+
+export interface AiMoveResponse {
+  state: GameState;
+  move: number;
+  level: AiLevel;
+  outcome: AiOutcome;
+  confidence: string;
+  reason: string[];
+  evaluated_moves: AiMoveEvaluation[];
+  applied: boolean;
 }

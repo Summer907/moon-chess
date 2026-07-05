@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .ai import AiLevel, AiMoveRequest, AiMoveResponse, build_ai_move_response
 from .game import GameError, GameStore
 from .models import CreateGameRequest, GameState, MoveRequest
 
@@ -57,6 +58,35 @@ def get_game(game_id: str) -> GameState:
 def make_move(game_id: str, request: MoveRequest) -> GameState:
     try:
         return store.get(game_id).move(request.position)
+    except GameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/games/{game_id}/hint", response_model=AiMoveResponse)
+def get_hint(game_id: str, level: AiLevel = "medium", seed: int | None = None) -> AiMoveResponse:
+    try:
+        game = store.get(game_id)
+    except GameError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        return build_ai_move_response(game, level=level, seed=seed, auto_apply=False)
+    except GameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/games/{game_id}/ai-move", response_model=AiMoveResponse)
+def make_ai_move(game_id: str, request: AiMoveRequest) -> AiMoveResponse:
+    try:
+        game = store.get(game_id)
+    except GameError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        return build_ai_move_response(
+            game,
+            level=request.level,
+            seed=request.seed,
+            auto_apply=request.auto_apply,
+        )
     except GameError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
