@@ -59,7 +59,7 @@ onMounted(() => {
 <template>
   <header class="app-header">
     <div class="title-block">
-      <h1 class="app-title">月亮棋 · 模拟器</h1>
+      <h1 class="app-title">月亮棋 · 月轨推演</h1>
       <p class="subtitle">三是表象，四是本征；七，是二者交叠后的垂直超越之径。</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">

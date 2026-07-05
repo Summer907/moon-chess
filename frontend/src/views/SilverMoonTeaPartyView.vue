@@ -143,8 +143,8 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div class="title-block">
-      <h1 class="app-title">月亮棋 · AI 对战</h1>
-      <p class="subtitle">后端规则 AI 推荐、落子和解释全程同源。</p>
+      <h1 class="app-title">月亮棋 · 银月茶会</h1>
+      <p class="subtitle">入席执棋，与银月对弈；若想取胜，先看清哪颗月亮将要落下。</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
       <span v-if="gameState.status === 'playing'">轮到 {{ gameState.current_player }}</span>

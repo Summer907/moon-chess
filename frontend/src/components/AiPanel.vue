@@ -17,9 +17,9 @@ defineEmits<{
 }>();
 
 const levels: Array<{ value: AiLevel; label: string }> = [
-  { value: "easy", label: "简单" },
-  { value: "medium", label: "中等" },
-  { value: "hard", label: "困难" },
+  { value: "easy", label: "虹月 · 简单" },
+  { value: "medium", label: "恒月 · 中等" },
+  { value: "hard", label: "霜月 · 困难" },
 ];
 
 function levelLabel(level: AiLevel): string {
