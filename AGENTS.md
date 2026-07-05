@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-MoonChess is split into a FastAPI backend and a Vue/Vite frontend. Backend source lives in `backend/app/`: `game.py` contains the rule engine, `main.py` exposes the API, and `models.py` defines Pydantic schemas. Backend tests are in `backend/tests/`. Frontend source lives in `frontend/src/`, with API calls in `api/`, Vue components in `components/`, shared CSS in `styles/`, and TypeScript types in `types/`. Utility scripts live in `scripts/`, including `scripts/solve_moon_chess.py`.
+MoonChess is split into a FastAPI backend and a Vue/Vite frontend. Backend source lives in `backend/app/`: `game.py` contains the rule engine, `main.py` exposes the API, `models.py` defines Pydantic schemas, and `ai/` provides AI opponent logic (hint and auto-move). Backend tests are in `backend/tests/`. Frontend source lives in `frontend/src/`, with API calls in `api/`, Vue components in `components/`, views in `views/`, routing in `router.ts`, shared CSS in `styles/`, and TypeScript types in `types/`. Utility scripts live in `scripts/`, including `scripts/solve_moon_chess.py`.
 
 ## Build, Test, and Development Commands
 
@@ -30,4 +30,6 @@ Git history currently uses Conventional Commit style, for example `feat: 实现�
 
 ## Architecture Notes
 
-The backend is the source of truth for legal moves, removals, winners, draw state, and analysis fields. The frontend should render API `GameState` and avoid re-deriving fields such as `pending_removal`, `upcoming_removal`, `legal_moves`, `winner`, or threat analysis.
+The backend is the source of truth for legal moves, removals, winners, draw state, AI moves, and analysis fields. The frontend should render API `GameState` and avoid re-deriving fields such as `pending_removal`, `upcoming_removal`, `legal_moves`, `winner`, or threat analysis.
+
+The frontend has two views: `SilverMoonTeaPartyView` (route `/`, the main PvP/AI play view) and `LunarOrbitView` (route `/lunar-orbit`, an analysis/simulation sandbox).

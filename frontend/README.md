@@ -1,6 +1,9 @@
 # 前端
 
-Vue 3 + TypeScript + Vite 实现月亮棋演示界面。
+Vue 3 + TypeScript + Vite 实现月亮棋演示界面，包含两套视图：
+
+- **银月茶会**（路由 `/`）——玩家对玩家 / 玩家对 AI 对弈界面。
+- **月轨推演**（路由 `/lunar-orbit`）——单步回溯、局面分析的沙盒模式。
 
 ```bash
 npm install
@@ -20,3 +23,5 @@ VITE_API_BASE_URL=http://localhost:8000
 ```bash
 npm run build
 ```
+
+路由定义在 `src/router.ts`，组件位于 `src/components/`，页面级视图位于 `src/views/`。
