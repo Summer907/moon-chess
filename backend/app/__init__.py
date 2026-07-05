@@ -1,0 +1,1 @@
+"""Moon Chess backend package."""

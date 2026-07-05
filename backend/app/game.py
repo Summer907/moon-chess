@@ -1,0 +1,391 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from uuid import uuid4
+
+from .models import Analysis, DrawMode, GameState, MoveEvent, Piece, Player
+
+
+WINNING_LINES: tuple[tuple[int, int, int], ...] = (
+    (1, 2, 3),
+    (4, 5, 6),
+    (7, 8, 9),
+    (1, 4, 7),
+    (2, 5, 8),
+    (3, 6, 9),
+    (1, 5, 9),
+    (3, 5, 7),
+)
+
+DRAW_AFTER_MOVES = 14
+
+
+class GameError(ValueError):
+    """Raised when a move or game operation is invalid."""
+
+
+def other_player(player: Player) -> Player:
+    return "O" if player == "X" else "X"
+
+
+def sorted_player_pieces(pieces: list[Piece], player: Player) -> list[Piece]:
+    return sorted((piece for piece in pieces if piece.player == player), key=lambda piece: piece.order)
+
+
+def winning_line_for(player: Player, pieces: list[Piece]) -> list[int] | None:
+    positions = {piece.position for piece in pieces if piece.player == player}
+    for line in WINNING_LINES:
+        if set(line).issubset(positions):
+            return list(line)
+    return None
+
+
+@dataclass
+class GameConfig:
+    first_player: Player = "X"
+    draw_mode: DrawMode = "repetition"
+    max_moves: int = DRAW_AFTER_MOVES
+
+
+class MoonChessGame:
+    def __init__(
+        self,
+        game_id: str | None = None,
+        first_player: Player = "X",
+        draw_mode: DrawMode = "repetition",
+        max_moves: int = DRAW_AFTER_MOVES,
+    ) -> None:
+        self.game_id = game_id or str(uuid4())
+        self.config = GameConfig(first_player=first_player, draw_mode=draw_mode, max_moves=max_moves)
+        self.current_player: Player = first_player
+        self.move_number = 0
+        self.pieces: list[Piece] = []
+        self.status: str = "playing"
+        self.winner: Player | None = None
+        self.winning_line: list[int] | None = None
+        self.history: list[MoveEvent] = []
+        self._seen_signatures: set[tuple[Player, tuple[int, ...], tuple[int, ...]]] = {self.signature()}
+
+    def state(self) -> GameState:
+        pending = self.pending_removal() if self.status == "playing" else None
+        upcoming = self.upcoming_removal() if self.status == "playing" else None
+        legal_moves = self.legal_moves() if self.status == "playing" else []
+        return GameState(
+            game_id=self.game_id,
+            current_player=self.current_player,
+            move_number=self.move_number,
+            pieces=[piece.model_copy() for piece in self._sorted_pieces()],
+            board=self.board(),
+            status=self.status,  # type: ignore[arg-type]
+            winner=self.winner,
+            winning_line=self.winning_line,
+            history=[event.model_copy(deep=True) for event in self.history],
+            pending_removal=pending.model_copy() if pending else None,
+            upcoming_removal=upcoming.model_copy() if upcoming else None,
+            legal_moves=legal_moves,
+            analysis=self.analysis(),
+        )
+
+    def move(self, position: int) -> GameState:
+        if self.status != "playing":
+            raise GameError("棋局已结束，不能继续落子。")
+
+        player = self.current_player
+        pending = self.pending_removal(player)
+        pieces_after_removal = self._pieces_without(pending)
+        legal_moves = self.legal_moves(player)
+        if position not in legal_moves:
+            raise GameError(f"位置 {position} 当前不可落子。")
+
+        placed_piece = Piece(
+            id=f"{player}{self._next_piece_order(player)}",
+            player=player,
+            position=position,
+            order=self._next_piece_order(player),
+        )
+        self.pieces = pieces_after_removal + [placed_piece]
+        self.move_number += 1
+
+        line = winning_line_for(player, self.pieces)
+        winner: Player | None = player if line else None
+        removed_after_move: Piece | None = None
+        if not winner and self.move_number < self.config.max_moves:
+            removed_after_move = self._advance_to_next_player()
+
+        removed_piece = pending or removed_after_move
+        note = self._move_note(
+            self.move_number,
+            player,
+            pending,
+            removed_after_move,
+            placed_piece,
+            position,
+            winner,
+            line,
+        )
+        event = MoveEvent(
+            move_number=self.move_number,
+            player=player,
+            removed_piece=removed_piece.model_copy() if removed_piece else None,
+            placed_piece=placed_piece,
+            position=position,
+            winner=winner,
+            line=line,
+            note=note,
+        )
+        self.history.append(event)
+
+        if winner:
+            self.status = "won"
+            self.winner = winner
+            self.winning_line = line
+            return self.state()
+
+        if self.move_number >= self.config.max_moves:
+            self.status = "draw"
+        elif self.config.draw_mode == "repetition":
+            signature = self.signature()
+            if signature in self._seen_signatures:
+                self.status = "draw"
+            else:
+                self._seen_signatures.add(signature)
+
+        return self.state()
+
+    def undo(self) -> GameState:
+        if not self.history:
+            return self.state()
+        events = self.history[:-1]
+        self._reset_runtime_state()
+        for event in events:
+            self._replay_event(event)
+        return self.state()
+
+    def reset(self) -> GameState:
+        self._reset_runtime_state()
+        return self.state()
+
+    def board(self) -> list[Piece | None]:
+        board: list[Piece | None] = [None for _ in range(9)]
+        for piece in self.pieces:
+            board[piece.position - 1] = piece.model_copy()
+        return board
+
+    def pending_removal(self, player: Player | None = None, pieces: list[Piece] | None = None) -> Piece | None:
+        target_player = player or self.current_player
+        target_pieces = sorted_player_pieces(pieces or self.pieces, target_player)
+        if len(target_pieces) >= 3:
+            return target_pieces[0]
+        return None
+
+    def upcoming_removal(self) -> Piece | None:
+        return self.pending_removal(other_player(self.current_player))
+
+    def legal_moves(self, player: Player | None = None, pieces: list[Piece] | None = None) -> list[int]:
+        if self.status != "playing" and pieces is None:
+            return []
+        target_player = player or self.current_player
+        source_pieces = pieces or self.pieces
+        pending = self.pending_removal(target_player, source_pieces)
+        pieces_after_removal = self._pieces_without(pending, source_pieces)
+        occupied = {piece.position for piece in pieces_after_removal}
+        return [position for position in range(1, 10) if position not in occupied]
+
+    def signature(
+        self,
+        current_player: Player | None = None,
+        pieces: list[Piece] | None = None,
+    ) -> tuple[Player, tuple[int, ...], tuple[int, ...]]:
+        source_pieces = pieces or self.pieces
+        player_to_move = current_player or self.current_player
+        x_positions = tuple(piece.position for piece in sorted_player_pieces(source_pieces, "X"))
+        o_positions = tuple(piece.position for piece in sorted_player_pieces(source_pieces, "O"))
+        return (player_to_move, x_positions, o_positions)
+
+    def analysis(self) -> Analysis:
+        if self.status != "playing":
+            return self._finished_analysis()
+
+        pending = self.pending_removal()
+        upcoming = self.upcoming_removal()
+        retained = sorted_player_pieces(self._pieces_without(pending), self.current_player)
+        current_winning_moves = self._winning_moves_for(self.current_player)
+        opponent = other_player(self.current_player)
+        opponent_real_threats = self._winning_moves_for(opponent)
+        explanation = self._analysis_explanation(
+            pending,
+            upcoming,
+            retained,
+            current_winning_moves,
+            opponent,
+            opponent_real_threats,
+        )
+
+        return Analysis(
+            current_player=self.current_player,
+            pending_removal=pending.model_copy() if pending else None,
+            upcoming_removal=upcoming.model_copy() if upcoming else None,
+            retained_pieces_after_removal=[piece.model_copy() for piece in retained],
+            current_winning_moves=current_winning_moves,
+            opponent_real_threats=opponent_real_threats,
+            explanation=explanation,
+        )
+
+    def _winning_moves_for(self, player: Player) -> list[int]:
+        moves: list[int] = []
+        next_order = self._next_piece_order(player)
+        for position in self.legal_moves(player):
+            pending = self.pending_removal(player)
+            simulated = self._pieces_without(pending) + [
+                Piece(id=f"{player}{next_order}", player=player, position=position, order=next_order)
+            ]
+            if winning_line_for(player, simulated):
+                moves.append(position)
+        return moves
+
+    def _finished_analysis(self) -> Analysis:
+        if self.status == "won":
+            explanation = [f"棋局已结束，{self.winner} 获胜。"]
+        else:
+            explanation = ["棋局已结束，判定为平局。"]
+        return Analysis(
+            current_player=self.current_player,
+            pending_removal=None,
+            upcoming_removal=None,
+            retained_pieces_after_removal=sorted_player_pieces(self.pieces, self.current_player),
+            current_winning_moves=[],
+            opponent_real_threats=[],
+            explanation=explanation,
+        )
+
+    def _analysis_explanation(
+        self,
+        pending: Piece | None,
+        upcoming: Piece | None,
+        retained: list[Piece],
+        current_winning_moves: list[int],
+        opponent: Player,
+        opponent_real_threats: list[int],
+    ) -> list[str]:
+        lines: list[str] = []
+        if pending:
+            lines.append(f"轮到 {self.current_player} 行动，{pending.id} 会先消失。")
+            retained_ids = "、".join(piece.id for piece in retained) or "没有棋子"
+            lines.append(f"删除 {pending.id} 后，{self.current_player} 保留 {retained_ids}。")
+        else:
+            lines.append(f"轮到 {self.current_player} 行动，当前不会有自己的棋子先消失。")
+
+        if upcoming:
+            lines.append(f"若本手没有结束棋局，下一回合前 {upcoming.id} 会消失。")
+        else:
+            lines.append("本手结束后暂时没有旧子消失预告。")
+
+        if current_winning_moves:
+            moves = "、".join(str(move) for move in current_winning_moves)
+            lines.append(f"{self.current_player} 当前直接胜点是 {moves}。")
+        else:
+            lines.append(f"{self.current_player} 当前没有直接胜点。")
+
+        if opponent_real_threats:
+            threats = "、".join(str(move) for move in opponent_real_threats)
+            lines.append(f"{opponent} 下一回合的真实威胁是 {threats}。")
+        else:
+            lines.append(f"{opponent} 下一回合没有真实威胁。")
+        return lines
+
+    def _pieces_without(self, removed_piece: Piece | None, pieces: list[Piece] | None = None) -> list[Piece]:
+        source_pieces = pieces or self.pieces
+        if not removed_piece:
+            return [piece.model_copy() for piece in source_pieces]
+        return [piece.model_copy() for piece in source_pieces if piece.id != removed_piece.id]
+
+    def _next_piece_order(self, player: Player) -> int:
+        active_orders = [piece.order for piece in self.pieces if piece.player == player]
+        history_orders = [event.placed_piece.order for event in self.history if event.player == player]
+        return max(active_orders + history_orders, default=0) + 1
+
+    def _sorted_pieces(self) -> list[Piece]:
+        return sorted(self.pieces, key=lambda piece: (piece.player, piece.order))
+
+    def _advance_to_next_player(self) -> Piece | None:
+        self.current_player = other_player(self.current_player)
+        removed_piece = self.pending_removal(self.current_player)
+        if removed_piece:
+            self.pieces = self._pieces_without(removed_piece)
+        return removed_piece.model_copy() if removed_piece else None
+
+    def _move_note(
+        self,
+        move_number: int,
+        player: Player,
+        removed_before_move: Piece | None,
+        removed_after_move: Piece | None,
+        placed_piece: Piece,
+        position: int,
+        winner: Player | None,
+        line: list[int] | None,
+    ) -> str:
+        if removed_before_move:
+            note = f"第 {move_number} 手：{removed_before_move.id} 先消失，{placed_piece.id} 落在 {position}"
+        else:
+            note = f"第 {move_number} 手：{player} 落子，{placed_piece.id} 落在 {position}"
+        if removed_after_move:
+            note += f"，随后 {removed_after_move.id} 消失"
+        if winner and line:
+            note += f"，{winner} 形成 {'-'.join(str(value) for value in line)} 获胜"
+        return note + "。"
+
+    def _reset_runtime_state(self) -> None:
+        self.current_player = self.config.first_player
+        self.move_number = 0
+        self.pieces = []
+        self.status = "playing"
+        self.winner = None
+        self.winning_line = None
+        self.history = []
+        self._seen_signatures = {self.signature()}
+
+    def _replay_event(self, event: MoveEvent) -> None:
+        if self.status != "playing":
+            return
+        self.pieces = self._pieces_without(event.removed_piece) + [event.placed_piece.model_copy()]
+        self.move_number = event.move_number
+        self.history.append(event.model_copy(deep=True))
+        if event.winner:
+            self.status = "won"
+            self.winner = event.winner
+            self.winning_line = event.line
+            return
+        self.current_player = other_player(event.player)
+        if self.move_number >= self.config.max_moves:
+            self.status = "draw"
+        elif self.config.draw_mode == "repetition":
+            signature = self.signature()
+            if signature in self._seen_signatures:
+                self.status = "draw"
+            else:
+                self._seen_signatures.add(signature)
+
+
+class GameStore:
+    def __init__(self) -> None:
+        self._games: dict[str, MoonChessGame] = {}
+
+    def create(
+        self,
+        first_player: Player = "X",
+        draw_mode: DrawMode = "repetition",
+        max_moves: int = DRAW_AFTER_MOVES,
+    ) -> GameState:
+        game = MoonChessGame(first_player=first_player, draw_mode=draw_mode, max_moves=max_moves)
+        self._games[game.game_id] = game
+        return game.state()
+
+    def get(self, game_id: str) -> MoonChessGame:
+        try:
+            return self._games[game_id]
+        except KeyError as exc:
+            raise GameError("棋局不存在。") from exc
+
+    def clear(self) -> None:
+        self._games.clear()
