@@ -1,6 +1,6 @@
-# 月亮棋 B/S 演示程序
+# 月亮棋（Moon Chess）
 
-用于制作 B 站视频的《原神》月亮棋规则演示：三子连线是表象，第四子触发旧子消失才是本征。
+《原神》月亮棋规则演示：三子连线是表象，第四子触发旧子消失才是本征。
 
 ## 目录结构
 
@@ -19,12 +19,22 @@ frontend/
     types/         # TypeScript 类型
 ```
 
-## 后端启动
+## 单服务启动
 
 ```bash
+cd frontend
+npm install
+npm run build
+
 cd backend
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8000
+```
+
+访问：
+
+```text
+http://localhost:8000
 ```
 
 健康检查：
@@ -40,7 +50,7 @@ cd backend
 python -m pytest -q
 ```
 
-## 前端启动
+## 前端独立开发
 
 ```bash
 cd frontend
@@ -48,19 +58,19 @@ npm install
 npm run dev
 ```
 
-前端默认读取：
+前端默认使用同源 `/api`。Vite 开发服务器会把 `/api` 代理到：
+
+```text
+http://localhost:8000
+```
+
+如需修改后端地址，在 `frontend/.env` 中设置，例如：
 
 ```text
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-如需修改后端地址，在 `frontend/.env` 中设置：
-
-```text
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-生产构建：
+生产构建会输出到 `frontend/dist`，FastAPI 会直接 serve 这个目录：
 
 ```bash
 cd frontend

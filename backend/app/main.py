@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .game import GameError, GameStore
 from .models import CreateGameRequest, GameState, MoveRequest
 
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
+FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 
 app = FastAPI(title="Moon Chess API")
 
@@ -68,3 +76,27 @@ def reset(game_id: str) -> GameState:
         return store.get(game_id).reset()
     except GameError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+if (FRONTEND_DIST / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="frontend-assets")
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend(full_path: str = "") -> FileResponse:
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="接口不存在。")
+    if not FRONTEND_INDEX.is_file():
+        raise HTTPException(status_code=404, detail="前端构建不存在，请先在 frontend 目录运行 npm run build。")
+
+    dist_root = FRONTEND_DIST.resolve()
+    requested_path = (FRONTEND_DIST / full_path).resolve()
+    try:
+        requested_path.relative_to(dist_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="文件不存在。") from exc
+
+    if requested_path.is_file():
+        return FileResponse(requested_path)
+    return FileResponse(FRONTEND_INDEX)

@@ -1,11 +1,18 @@
 # 后端
 
-FastAPI + Pydantic 实现月亮棋规则引擎和 API。
+FastAPI + Pydantic 实现月亮棋规则引擎和 API，并 serve `frontend/dist` 静态文件。
 
 ```bash
+cd ../frontend
+npm install
+npm run build
+
+cd ../backend
 python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --port 8000
 ```
+
+启动后访问 `http://localhost:8000` 即可打开前端页面。
 
 测试：
 
