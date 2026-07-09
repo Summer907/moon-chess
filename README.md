@@ -1,8 +1,27 @@
-# 月亮棋（Moon Chess）
+<p align="center">
+  <img src="assets/hero.png" alt="月亮棋 Moon Chess 界面预览" width="880">
+</p>
 
-《原神》月亮棋规则演示：三子连线是表象，第四子触发旧子消失才是本征。
+<h1 align="center">月亮棋 Moon Chess</h1>
+
+<p align="center">
+  三子连线是表象，第四子触发旧子消失才是本征。
+</p>
+
+<p align="center">
+  <a href="https://moon-chess.onrender.com/">
+    <img src="https://img.shields.io/badge/在线体验-moon--chess.onrender.com-8ddcff?style=for-the-badge" alt="在线体验">
+  </a>
+  <a href="https://github.com/Summer907/moon-chess">
+    <img src="https://img.shields.io/badge/GitHub-Summer907%2Fmoon--chess-0b1220?style=for-the-badge&logo=github" alt="GitHub 仓库">
+  </a>
+  <img src="https://img.shields.io/badge/License-MIT-a7f3d0?style=for-the-badge" alt="MIT License">
+</p>
+
+《原神》月亮棋规则演示工具：在九宫格中轮流落子，形成横、竖、斜三子连线即可获胜；但每方场上最多稳定保留三枚棋子，第四次行动会先让最早落下的旧子消失。
 
 前端有两套界面：
+
 - **银月茶会（首页 /）**——玩家对玩家 / 玩家对 AI 对弈界面。
 - **月轨推演（/lunar-orbit）**——单步回溯、局面分析的沙盒模式。
 
@@ -49,16 +68,16 @@ http://localhost:8000
 
 ## API 接口
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/health` | 健康检查 |
-| POST | `/api/games` | 新建对局 |
-| GET | `/api/games/{id}` | 查询棋局状态 |
-| POST | `/api/games/{id}/moves` | 落子 |
-| POST | `/api/games/{id}/undo` | 悔棋 |
-| POST | `/api/games/{id}/reset` | 重置棋局 |
-| GET | `/api/games/{id}/hint?level=medium` | 获取 AI 落子建议 |
-| POST | `/api/games/{id}/ai-move` | AI 自动走棋 |
+| 方法 | 路径                                  | 说明             |
+| ---- | ------------------------------------- | ---------------- |
+| GET  | `/api/health`                       | 健康检查         |
+| POST | `/api/games`                        | 新建对局         |
+| GET  | `/api/games/{id}`                   | 查询棋局状态     |
+| POST | `/api/games/{id}/moves`             | 落子             |
+| POST | `/api/games/{id}/undo`              | 悔棋             |
+| POST | `/api/games/{id}/reset`             | 重置棋局         |
+| GET  | `/api/games/{id}/hint?level=medium` | 获取 AI 落子建议 |
+| POST | `/api/games/{id}/ai-move`           | AI 自动走棋      |
 
 运行测试：
 

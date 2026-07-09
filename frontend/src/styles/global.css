@@ -162,6 +162,13 @@ button {
   gap: 10px;
 }
 
+.app-nav-actions {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
 .app-nav a {
   display: inline-flex;
   align-items: center;
@@ -185,29 +192,48 @@ button {
 .theme-switcher {
   display: inline-flex;
   flex: 0 0 auto;
-  gap: 4px;
-  padding: 4px;
+  gap: 8px;
+}
+
+.nav-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--nav-border);
   border-radius: 8px;
   background: var(--nav-bg);
-}
-
-.theme-toggle-button {
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: transparent;
   color: var(--nav-text);
-  font-size: 13px;
-  font-weight: 900;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 8%);
   cursor: pointer;
+  text-decoration: none;
 }
 
-.theme-toggle-button.active {
+.nav-icon-button svg {
+  width: 21px;
+  height: 21px;
+}
+
+.nav-icon-button--github svg {
+  width: 32px;
+  height: 32px;
+}
+
+.nav-icon-button:hover,
+.nav-icon-button.active {
+  border-color: var(--nav-active-text);
   background: var(--nav-active-bg);
   color: var(--nav-active-text);
 }
 
-.theme-toggle-button:focus-visible {
+.theme-toggle-button {
+  font-size: 0;
+}
+
+.theme-toggle-button:focus-visible,
+.nav-icon-button:focus-visible {
   outline: 3px solid var(--page-subtitle);
   outline-offset: 2px;
 }
@@ -950,8 +976,250 @@ button {
   font-weight: 800;
 }
 
+.app-footer {
+  display: grid;
+  gap: 6px;
+  margin-top: 34px;
+  padding: 20px 0 6px;
+  border-top: 1px solid var(--surface-divider);
+  color: var(--surface-muted);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.app-footer p {
+  margin: 0;
+}
+
+.guide-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(2 10 24 / 68%);
+  backdrop-filter: blur(10px);
+}
+
+.guide-dialog {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  width: min(760px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--surface-bg);
+  color: var(--surface-text);
+  box-shadow:
+    0 24px 70px rgb(0 8 24 / 48%),
+    inset 0 0 34px rgb(141 226 255 / 10%);
+  backdrop-filter: blur(18px);
+}
+
+.guide-dialog:focus {
+  outline: none;
+}
+
+.guide-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 22px 16px;
+  border-bottom: 1px solid var(--surface-divider);
+}
+
+.guide-kicker {
+  margin: 0 0 6px;
+  color: var(--surface-muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.guide-header h2 {
+  margin: 0;
+  color: var(--surface-strong);
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.guide-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--surface-strong);
+  cursor: pointer;
+}
+
+.guide-icon-button:hover {
+  background: var(--control-selected-bg);
+}
+
+.guide-icon-button:focus-visible {
+  outline: 3px solid var(--page-subtitle);
+  outline-offset: 2px;
+}
+
+.guide-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--surface-divider);
+}
+
+.guide-tab {
+  min-width: 0;
+  min-height: 38px;
+  padding: 7px 8px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--control-bg);
+  color: var(--surface-text);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.guide-tab.active {
+  border-color: var(--page-subtitle);
+  background: var(--control-selected-bg);
+  color: var(--surface-strong);
+}
+
+.guide-tab:focus-visible {
+  outline: 3px solid var(--page-subtitle);
+  outline-offset: 2px;
+}
+
+.guide-content {
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 22px 22px;
+}
+
+.guide-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.guide-callout {
+  padding: 14px 16px;
+  border: 1px solid var(--surface-border);
+  border-left: 6px solid var(--page-subtitle);
+  border-radius: 8px;
+  background: var(--summary-bg);
+}
+
+.guide-callout strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--surface-strong);
+  font-size: 16px;
+}
+
+.guide-callout p,
+.guide-mode-grid p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.guide-steps {
+  margin: 0;
+  padding-left: 24px;
+}
+
+.guide-steps li {
+  margin: 10px 0;
+  line-height: 1.65;
+}
+
+.guide-rule-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.guide-rule-list div {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--surface-divider);
+}
+
+.guide-rule-list dt {
+  color: var(--surface-muted);
+  font-weight: 900;
+}
+
+.guide-rule-list dd {
+  margin: 0;
+  color: var(--surface-strong);
+  font-weight: 800;
+  line-height: 1.6;
+}
+
+.guide-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.guide-mode-grid article {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--summary-bg);
+}
+
+.guide-mode-grid h3 {
+  margin: 0 0 8px;
+  color: var(--surface-strong);
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.guide-marker-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-marker-list li {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--surface-divider);
+  line-height: 1.55;
+}
+
+.guide-marker-list strong {
+  color: var(--surface-muted);
+}
+
+.guide-marker-list span {
+  color: var(--surface-strong);
+  font-weight: 800;
+}
+
 .theme-dark .theme-switcher {
-  background: rgb(8 23 48 / 82%);
+  background: transparent;
 }
 
 .theme-dark .theme-toggle-button {
@@ -1364,6 +1632,24 @@ button {
     padding: 12px;
   }
 
+  .app-nav {
+    align-items: stretch;
+  }
+
+  .app-nav-links {
+    flex: 1 1 100%;
+  }
+
+  .app-nav-links a {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .app-nav-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .board-panel,
   .ai-panel,
   .history-panel,
@@ -1401,5 +1687,41 @@ button {
   .segmented-control,
   .difficulty-control {
     grid-template-columns: 1fr;
+  }
+
+  .guide-backdrop {
+    padding: 10px;
+  }
+
+  .guide-dialog {
+    max-height: calc(100vh - 20px);
+  }
+
+  .guide-header {
+    padding: 18px 16px 12px;
+  }
+
+  .guide-header h2 {
+    font-size: 22px;
+  }
+
+  .guide-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px 16px;
+  }
+
+  .guide-content {
+    padding: 16px;
+  }
+
+  .guide-rule-list div,
+  .guide-marker-list li,
+  .guide-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .guide-rule-list div,
+  .guide-marker-list li {
+    gap: 4px;
   }
 }
