@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { RouterLink } from "vue-router";
 
 import { createGame, makeAiMove, makeMove, undo } from "../api/client";
 import GameBoard from "../components/GameBoard.vue";
+import ResponsiveDisclosure from "../components/ResponsiveDisclosure.vue";
 import GameHistoryList from "../components/game/GameHistoryList.vue";
 import GameSettingsCard from "../components/game/GameSettingsCard.vue";
 import GameStatusCard from "../components/game/GameStatusCard.vue";
@@ -17,6 +19,7 @@ import {
   pieceDisplayClass,
 } from "../utils/playerDisplay";
 import { useElementHeightCssVar } from "../utils/useElementHeightCssVar";
+import { loadGamePreferences, saveGamePreferences } from "../utils/useGamePreferences";
 
 const THINKING_DELAYS: Record<AiLevel, { min: number; max: number }> = {
   easy: { min: 500, max: 900 },
@@ -29,8 +32,9 @@ const loading = ref(false);
 const aiThinking = ref(false);
 const aiTimeoutId = ref<number | null>(null);
 const errorMessage = ref("");
-const aiLevel = ref<AiLevel>("medium");
-const travelerSide = ref<TravelerSide>("first");
+const savedPreferences = loadGamePreferences();
+const aiLevel = ref<AiLevel>(savedPreferences.teaParty.aiLevel);
+const travelerSide = ref<TravelerSide>(savedPreferences.teaParty.travelerSide);
 const showCellNumbers = ref(true);
 const showLegalMoves = ref(true);
 const showWinningMoves = ref(true);
@@ -64,11 +68,8 @@ const statusPillText = computed(() => {
   if (!gameState.value) {
     return "";
   }
-  if (gameState.value.status === "won") {
-    return `${formatPlayer(gameState.value.winner, displayMap.value)}胜利`;
-  }
-  if (gameState.value.status === "draw") {
-    return "平局";
+  if (gameState.value.status !== "playing") {
+    return "对局结束";
   }
   if (aiThinking.value) {
     return "哥伦比娅思考中……";
@@ -176,6 +177,16 @@ function updateTravelerSide(value: TravelerSide) {
   travelerSide.value = value;
   void startNewGame();
 }
+
+function updateAiLevel(value: AiLevel) {
+  aiLevel.value = value;
+}
+
+watch([travelerSide, aiLevel], () => {
+  const preferences = loadGamePreferences();
+  preferences.teaParty = { travelerSide: travelerSide.value, aiLevel: aiLevel.value };
+  saveGamePreferences(preferences);
+});
 
 async function undoMove() {
   if (!gameState.value || loading.value) {
@@ -300,8 +311,9 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div class="title-block">
-      <h1 class="app-title">月亮棋 · 银月茶会</h1>
-      <p class="subtitle">入席执棋，与银月对弈；若想取胜，须先看清哪颗月亮将要落下。</p>
+      <RouterLink class="return-home-link" to="/">← 返回银月之庭</RouterLink>
+      <h1 class="app-title">月亮棋·银月茶会</h1>
+      <p class="subtitle">与银月对弈；若想取胜，须先看清哪颗月亮将要落下。</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
       <span>{{ statusPillText }}</span>
@@ -328,14 +340,31 @@ onBeforeUnmount(() => {
       />
     </div>
 
+    <div class="mobile-game-actions button-row" aria-label="棋局操作">
+      <button type="button" :disabled="loading" title="清空当前棋局，重新开始一场银月茶会。" @click="startNewGame">
+        再启银月
+      </button>
+      <button type="button" :disabled="loading || !canUndo" title="沿月影回溯，撤回上一轮对弈。" @click="undoMove">
+        逆转月轨
+      </button>
+    </div>
+
     <div class="game-side-stack game-side-stack--duo">
-      <GameStatusCard
-        :state="gameState"
-        :display-map="displayMap"
-        :ai-thinking="aiThinking"
-        :show-removal-preview="showRemovalPreview"
-      />
-      <GameSettingsCard
+      <ResponsiveDisclosure
+        class="disclosure-status"
+        title="当前状态"
+        :status-text="statusPillText"
+        :force-open="gameState.status === 'won'"
+      >
+        <GameStatusCard
+          :state="gameState"
+          :display-map="displayMap"
+          :ai-thinking="aiThinking"
+          :show-removal-preview="showRemovalPreview"
+        />
+      </ResponsiveDisclosure>
+      <ResponsiveDisclosure class="disclosure-settings" title="对弈配置">
+        <GameSettingsCard
         :traveler-side="travelerSide"
         :ai-level="aiLevel"
         :show-ai-level="true"
@@ -349,13 +378,14 @@ onBeforeUnmount(() => {
         @new-game="startNewGame"
         @undo="undoMove"
         @update:traveler-side="updateTravelerSide"
-        @update:ai-level="aiLevel = $event"
+        @update:ai-level="updateAiLevel"
         @update:show-cell-numbers="showCellNumbers = $event"
         @update:show-legal-moves="showLegalMoves = $event"
         @update:show-winning-moves="showWinningMoves = $event"
         @update:show-threat-moves="showThreatMoves = $event"
         @update:show-removal-preview="showRemovalPreview = $event"
-      />
+        />
+      </ResponsiveDisclosure>
     </div>
   </section>
 

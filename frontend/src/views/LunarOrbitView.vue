@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { RouterLink } from "vue-router";
 
 import { createGame, makeMove, undo } from "../api/client";
 import GameBoard from "../components/GameBoard.vue";
+import ResponsiveDisclosure from "../components/ResponsiveDisclosure.vue";
 import GameHistoryList from "../components/game/GameHistoryList.vue";
 import GameSettingsCard from "../components/game/GameSettingsCard.vue";
 import GameStatusCard from "../components/game/GameStatusCard.vue";
@@ -17,11 +19,13 @@ import {
   pieceDisplayClass,
 } from "../utils/playerDisplay";
 import { useElementHeightCssVar } from "../utils/useElementHeightCssVar";
+import { loadGamePreferences, saveGamePreferences } from "../utils/useGamePreferences";
 
 const gameState = ref<GameState | null>(null);
 const loading = ref(false);
 const errorMessage = ref("");
-const travelerSide = ref<TravelerSide>("first");
+const savedPreferences = loadGamePreferences();
+const travelerSide = ref<TravelerSide>(savedPreferences.lunarOrbit.travelerSide);
 const showCellNumbers = ref(true);
 const showLegalMoves = ref(true);
 const showWinningMoves = ref(true);
@@ -39,11 +43,8 @@ const statusPillText = computed(() => {
   if (!gameState.value) {
     return "";
   }
-  if (gameState.value.status === "won") {
-    return `${formatPlayer(gameState.value.winner, displayMap.value)}胜利`;
-  }
-  if (gameState.value.status === "draw") {
-    return "平局";
+  if (gameState.value.status !== "playing") {
+    return "对局结束";
   }
   return `轮到 ${formatPlayer(gameState.value.current_player, displayMap.value)}`;
 });
@@ -84,6 +85,12 @@ function updateTravelerSide(value: TravelerSide) {
   travelerSide.value = value;
 }
 
+watch(travelerSide, () => {
+  const preferences = loadGamePreferences();
+  preferences.lunarOrbit = { travelerSide: travelerSide.value };
+  saveGamePreferences(preferences);
+});
+
 function playerName(player: Player): string {
   return formatPlayer(player, displayMap.value);
 }
@@ -108,7 +115,8 @@ onMounted(() => {
 <template>
   <header class="app-header">
     <div class="title-block">
-      <h1 class="app-title">月亮棋 · 月轨推演</h1>
+      <RouterLink class="return-home-link" to="/">← 返回银月之庭</RouterLink>
+      <h1 class="app-title">月亮棋·月轨推演</h1>
       <p class="subtitle">三是表象，四是本征；七，是二者交叠后的垂直超越之径。</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
@@ -136,14 +144,33 @@ onMounted(() => {
       />
     </div>
 
+    <div class="mobile-game-actions button-row" aria-label="推演操作">
+      <button type="button" :disabled="loading" title="清空当前棋局，重新开始一次月轨推演。" @click="startNewGame">
+        重新推演
+      </button>
+      <button type="button" :disabled="loading || !canUndo" title="撤回上一步推演。" @click="undoMove">
+        回退一步
+      </button>
+    </div>
+
     <div class="game-side-stack game-side-stack--analysis">
-      <GameStatusCard
-        :state="gameState"
-        :display-map="displayMap"
-        :show-removal-preview="showRemovalPreview"
-      />
-      <LunarOrbitAnalysisCard :state="gameState" :display-map="displayMap" />
-      <GameSettingsCard
+      <ResponsiveDisclosure
+        class="disclosure-status"
+        title="当前状态"
+        :status-text="statusPillText"
+        :force-open="gameState.status === 'won'"
+      >
+        <GameStatusCard
+          :state="gameState"
+          :display-map="displayMap"
+          :show-removal-preview="showRemovalPreview"
+        />
+      </ResponsiveDisclosure>
+      <ResponsiveDisclosure class="disclosure-analysis" title="推演详情" :default-mobile-open="true">
+        <LunarOrbitAnalysisCard :state="gameState" :display-map="displayMap" />
+      </ResponsiveDisclosure>
+      <ResponsiveDisclosure class="disclosure-settings" title="推演配置">
+        <GameSettingsCard
         title="推演配置"
         new-game-label="重新推演"
         new-game-title="清空当前棋局，重新开始一次月轨推演。"
@@ -166,7 +193,8 @@ onMounted(() => {
         @update:show-winning-moves="showWinningMoves = $event"
         @update:show-threat-moves="showThreatMoves = $event"
         @update:show-removal-preview="showRemovalPreview = $event"
-      />
+        />
+      </ResponsiveDisclosure>
     </div>
   </section>
 

@@ -22,17 +22,10 @@ const props = withDefaults(
 );
 
 const currentActionText = computed(() => {
-  if (props.state.status === "won") {
-    return `${formatPlayer(props.state.winner, props.displayMap)}胜利`;
-  }
-  if (props.state.status === "draw") {
-    return "平局";
-  }
-  if (props.aiThinking) {
-    return props.thinkingText;
-  }
   return formatPlayer(props.state.current_player, props.displayMap);
 });
+
+const cardTitle = computed(() => (props.state.status === "playing" ? props.title : "对局结束"));
 
 const resultText = computed(() => {
   if (props.state.status === "won") {
@@ -53,14 +46,18 @@ const winningLineText = computed(() =>
 <template>
   <section class="game-status-card" :class="{ 'has-result': state.status !== 'playing' }" aria-label="当前状态">
     <div class="section-title">
-      <span>{{ title }}</span>
+      <span>{{ cardTitle }}</span>
       <strong>第 {{ state.move_number }} 手</strong>
     </div>
 
-    <dl class="game-status-grid">
+    <dl v-if="state.status === 'playing'" class="game-status-grid">
       <div>
         <dt>当前行动方</dt>
         <dd>{{ currentActionText }}</dd>
+      </div>
+      <div v-if="aiThinking">
+        <dt>行动状态</dt>
+        <dd>{{ thinkingText }}</dd>
       </div>
       <div>
         <dt>本手先消</dt>

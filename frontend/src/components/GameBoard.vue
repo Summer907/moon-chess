@@ -24,6 +24,19 @@ const emit = defineEmits<{
 
 const positions = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const removalPreview = computed(() => props.state.pending_removal ?? props.state.upcoming_removal);
+const winningLine = computed(() => {
+  const [start, , end] = props.state.winning_line ?? [];
+  if (!start || !end) {
+    return null;
+  }
+
+  return {
+    x1: ((start - 1) % 3 + 0.5) * 100,
+    y1: (Math.floor((start - 1) / 3) + 0.5) * 100,
+    x2: ((end - 1) % 3 + 0.5) * 100,
+    y2: (Math.floor((end - 1) / 3) + 0.5) * 100,
+  };
+});
 
 function pieceAt(position: number): Piece | null {
   return props.state.board[position - 1] ?? null;
@@ -84,33 +97,60 @@ function isOpponentRealThreat(position: number): boolean {
     <div class="board-meta">
       <div>
         <span>第 {{ state.move_number }} 手后</span>
-        <strong>当前：{{ playerText(state.current_player) }}</strong>
+        <strong>{{ state.status === "playing" ? `当前：${playerText(state.current_player)}` : "对局结束" }}</strong>
       </div>
-      <div class="pending-text">
+      <div v-if="state.status === 'playing'" class="pending-text">
         消失预告：
         <strong>{{ showRemovalPreview ? (removalPreview ? pieceDescription(removalPreview) : "无") : "已隐藏" }}</strong>
       </div>
     </div>
 
-    <div class="board-grid">
-      <GameCell
-        v-for="position in positions"
-        :key="position"
-        :position="position"
-        :piece="pieceAt(position)"
-        :piece-label="pieceLabel(pieceAt(position))"
-        :piece-description="pieceDescription(pieceAt(position))"
-        :piece-class="pieceClassName(pieceAt(position))"
-        :show-number="showCellNumbers"
-        :is-pending-removal="isPendingRemoval(pieceAt(position))"
-        :is-winning="isWinningPosition(position)"
-        :is-legal="isLegalMove(position)"
-        :show-legal-highlight="shouldHighlightLegalMove(position)"
-        :is-current-winning-move="isCurrentWinningMove(position)"
-        :is-opponent-real-threat="isOpponentRealThreat(position)"
-        :disabled="disabled"
-        @place="emit('place', $event)"
-      />
+    <div class="board-stage">
+      <div class="board-aura" aria-hidden="true"></div>
+      <div class="board-ornaments" aria-hidden="true">
+        <span class="board-ornament board-ornament--top"></span>
+        <span class="board-ornament board-ornament--right"></span>
+        <span class="board-ornament board-ornament--bottom"></span>
+        <span class="board-ornament board-ornament--left"></span>
+      </div>
+      <div class="board-grid" :class="{ 'has-winner': winningLine }">
+        <svg v-if="winningLine" class="winning-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <filter id="winning-line-glow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <line
+            :x1="winningLine.x1"
+            :y1="winningLine.y1"
+            :x2="winningLine.x2"
+            :y2="winningLine.y2"
+            pathLength="1"
+          />
+        </svg>
+        <GameCell
+          v-for="position in positions"
+          :key="position"
+          :position="position"
+          :piece="pieceAt(position)"
+          :piece-label="pieceLabel(pieceAt(position))"
+          :piece-description="pieceDescription(pieceAt(position))"
+          :piece-class="pieceClassName(pieceAt(position))"
+          :show-number="showCellNumbers"
+          :is-pending-removal="isPendingRemoval(pieceAt(position))"
+          :is-winning="isWinningPosition(position)"
+          :is-legal="isLegalMove(position)"
+          :show-legal-highlight="shouldHighlightLegalMove(position)"
+          :is-current-winning-move="isCurrentWinningMove(position)"
+          :is-opponent-real-threat="isOpponentRealThreat(position)"
+          :disabled="disabled"
+          @place="emit('place', $event)"
+        />
+      </div>
     </div>
   </section>
 </template>
