@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections import OrderedDict
+from threading import Lock
 
 from ..game import WINNING_LINES, MoonChessGame, other_player, sorted_player_pieces
+from ..protection import _positive_int
 from ..models import Player
 from .heuristics import score_move
 from .models import AiMoveEvaluation, AiOutcome
@@ -12,7 +15,9 @@ from .explanations import outcome_text
 CompactState = tuple[int, int, Player, tuple[int, ...], tuple[int, ...]]
 MemoSignature = CompactState
 CycleSignature = tuple[Player, tuple[int, ...], tuple[int, ...]]
-_GLOBAL_MEMO: dict[MemoSignature, "SearchResult"] = {}
+_MEMO_CAPACITY = _positive_int("AI_MEMO_CAPACITY", 100_000)
+_GLOBAL_MEMO: OrderedDict[MemoSignature, "SearchResult"] = OrderedDict()
+_MEMO_LOCK = Lock()
 
 
 @dataclass(frozen=True)
@@ -52,8 +57,11 @@ class HardSolver:
         if cycle_key in visiting:
             return SearchResult(outcome="draw", plies=0, move=None)
 
-        if state in self._memo:
-            return self._memo[state]
+        with _MEMO_LOCK:
+            cached = self._memo.get(state)
+            if cached is not None:
+                self._memo.move_to_end(state)
+                return cached
 
         candidates = [
             self._evaluate_move(state, move, visiting | {cycle_key})
@@ -64,7 +72,11 @@ class HardSolver:
         else:
             result = self._choose_best(candidates)
 
-        self._memo[state] = result
+        with _MEMO_LOCK:
+            self._memo[state] = result
+            self._memo.move_to_end(state)
+            while len(self._memo) > _MEMO_CAPACITY:
+                self._memo.popitem(last=False)
         return result
 
     def _evaluate_move(

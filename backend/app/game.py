@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from threading import Lock
+import time
+from typing import Iterator
 from uuid import uuid4
 
 from .models import Analysis, GameState, MoveEvent, Piece, Player
@@ -396,23 +400,92 @@ class MoonChessGame:
 
 
 class GameStore:
-    def __init__(self) -> None:
-        self._games: dict[str, MoonChessGame] = {}
+    def __init__(
+        self,
+        playing_ttl_seconds: int = 60 * 60,
+        finished_ttl_seconds: int = 15 * 60,
+        max_games_per_ip: int = 10,
+        max_games: int = 5_000,
+    ) -> None:
+        self._games: dict[str, StoredGame] = {}
+        self._playing_ttl_seconds = playing_ttl_seconds
+        self._finished_ttl_seconds = finished_ttl_seconds
+        self._max_games_per_ip = max_games_per_ip
+        self._max_games = max_games
+        self._lock = Lock()
 
     def create(
         self,
         first_player: Player = "X",
         max_moves: int = DRAW_AFTER_MOVES,
+        owner_ip: str = "unknown",
     ) -> GameState:
-        game = MoonChessGame(first_player=first_player, max_moves=max_moves)
-        self._games[game.game_id] = game
-        return game.state()
+        with self._lock:
+            self._prune_locked()
+            self._evict_owner_games_locked(owner_ip)
+            self._evict_to_capacity_locked()
+            if len(self._games) >= self._max_games:
+                raise GameError("服务器当前棋局过多，请稍后重试。")
+            game = MoonChessGame(first_player=first_player, max_moves=max_moves)
+            self._games[game.game_id] = StoredGame(game=game, owner_ip=owner_ip)
+            return game.state()
 
     def get(self, game_id: str) -> MoonChessGame:
-        try:
-            return self._games[game_id]
-        except KeyError as exc:
-            raise GameError("棋局不存在。") from exc
+        with self._lock:
+            return self._entry_locked(game_id).game
+
+    @contextmanager
+    def locked(self, game_id: str) -> Iterator[MoonChessGame]:
+        with self._lock:
+            entry = self._entry_locked(game_id)
+        with entry.lock:
+            with self._lock:
+                entry.last_accessed = time.monotonic()
+            yield entry.game
 
     def clear(self) -> None:
-        self._games.clear()
+        with self._lock:
+            self._games.clear()
+
+    def _entry_locked(self, game_id: str) -> StoredGame:
+        self._prune_locked()
+        try:
+            entry = self._games[game_id]
+        except KeyError as exc:
+            raise GameError("棋局不存在。") from exc
+        entry.last_accessed = time.monotonic()
+        return entry
+
+    def _prune_locked(self) -> None:
+        now = time.monotonic()
+        expired_ids = [
+            game_id
+            for game_id, entry in self._games.items()
+            if now - entry.last_accessed > (
+                self._playing_ttl_seconds if entry.game.status == "playing" else self._finished_ttl_seconds
+            )
+        ]
+        for game_id in expired_ids:
+            del self._games[game_id]
+
+    def _evict_owner_games_locked(self, owner_ip: str) -> None:
+        owner_entries = sorted(
+            ((game_id, entry) for game_id, entry in self._games.items() if entry.owner_ip == owner_ip),
+            key=lambda item: item[1].last_accessed,
+        )
+        while len(owner_entries) >= self._max_games_per_ip:
+            game_id, _ = owner_entries.pop(0)
+            del self._games[game_id]
+
+    def _evict_to_capacity_locked(self) -> None:
+        while len(self._games) >= self._max_games:
+            oldest_game_id = min(self._games, key=lambda game_id: self._games[game_id].last_accessed)
+            del self._games[oldest_game_id]
+
+
+@dataclass
+class StoredGame:
+    game: MoonChessGame
+    owner_ip: str
+    last_accessed: float = field(default_factory=time.monotonic)
+    lock: Lock = field(default_factory=Lock)

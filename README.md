@@ -83,6 +83,14 @@ http://localhost:8000
 | GET  | `/api/games/{id}/hint?level=medium` | 获取 AI 落子建议 |
 | POST | `/api/games/{id}/ai-move`           | AI 自动走棋      |
 
+## 公开部署保护
+
+后端默认启用单实例、进程内的资源保护：创建棋局、普通操作和 AI 请求分别限流；困难 AI 同时只执行一个搜索；棋局会按活跃状态过期，并限制单 IP 与实例总量。超限请求返回 `429` 和 `Retry-After`。
+
+可用环境变量：`RATE_LIMIT_CREATE_PER_MINUTE`（5）、`RATE_LIMIT_CREATE_PER_HOUR`（30）、`RATE_LIMIT_GENERAL_PER_MINUTE`（60）、`RATE_LIMIT_AI_PER_MINUTE`（20）、`RATE_LIMIT_HARD_AI_PER_MINUTE`（5）、`AI_STANDARD_CONCURRENCY`（4）、`AI_HARD_CONCURRENCY`（1）、`AI_MEMO_CAPACITY`（100000）、`GAME_PLAYING_TTL_SECONDS`（3600）、`GAME_FINISHED_TTL_SECONDS`（900）、`MAX_GAMES_PER_IP`（10）和 `MAX_GAMES`（5000）。
+
+默认不信任转发请求头；若确认请求只会经过受信反向代理，可用 `TRUSTED_PROXY_IPS` 设置逗号分隔的代理 IP 地址。横向扩容前需将棋局、限流计数和锁迁移到 Redis。
+
 运行测试：
 
 ```bash

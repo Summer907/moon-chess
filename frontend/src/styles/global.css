@@ -252,11 +252,7 @@ button {
 .nav-icon-button svg {
   width: clamp(18px, calc(0.625vw + 16px), 21px);
   height: clamp(18px, calc(0.625vw + 16px), 21px);
-}
-
-.nav-icon-button--github svg {
-  width: clamp(27px, calc(1.04vw + 23.7px), 32px);
-  height: clamp(27px, calc(1.04vw + 23.7px), 32px);
+  overflow: visible;
 }
 
 .app-nav a.nav-icon-button {
@@ -2284,7 +2280,7 @@ body::after {
   text-decoration: none;
 }
 
-/* The GitHub control is an anchor, so it also matches the general nav-link rule. */
+/* Social controls are anchors, so they also match the general nav-link rule. */
 .app-nav a.nav-icon-button {
   border: 0;
 }
@@ -2293,7 +2289,7 @@ body::after {
   border: 0;
 }
 
-/* Keep all utility controls icon-only, including the GitHub anchor's nav-link styles. */
+/* Keep all utility controls icon-only, including social anchors' nav-link styles. */
 .app-nav .nav-icon-button,
 .app-nav .nav-icon-button:hover,
 .app-nav .nav-icon-button:focus-visible {
