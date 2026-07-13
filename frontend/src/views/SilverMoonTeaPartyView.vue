@@ -334,7 +334,6 @@ onBeforeUnmount(() => {
         :show-threat-moves="showThreatMoves"
         :show-removal-preview="showRemovalPreview"
         :disabled="!canPlace"
-        :format-player="playerName"
         :format-piece-label="pieceShortName"
         :format-piece-description="pieceFullName"
         :piece-class="pieceClassName"

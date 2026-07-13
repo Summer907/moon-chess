@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 import GameCell from "./GameCell.vue";
-import type { GameState, Piece, Player } from "../types/game";
+import type { GameState, Piece } from "../types/game";
 
 const props = defineProps<{
   state: GameState;
@@ -13,7 +13,6 @@ const props = defineProps<{
   showThreatMoves: boolean;
   showRemovalPreview: boolean;
   disabled: boolean;
-  formatPlayer?: (player: Player) => string;
   formatPieceLabel?: (piece: Piece) => string;
   formatPieceDescription?: (piece: Piece) => string;
   pieceClass?: (piece: Piece) => string;
@@ -42,10 +41,6 @@ const winningLine = computed(() => {
 
 function pieceAt(position: number): Piece | null {
   return props.state.board[position - 1] ?? null;
-}
-
-function playerText(player: Player): string {
-  return props.formatPlayer?.(player) ?? player;
 }
 
 function pieceLabel(piece: Piece | null): string | undefined {
@@ -99,7 +94,7 @@ function isOpponentRealThreat(position: number): boolean {
     <div class="board-meta">
       <div>
         <span>{{ t('common.afterMove', { count: state.move_number }) }}</span>
-        <strong>{{ state.status === "playing" ? t('game.current', { player: playerText(state.current_player) }) : t('game.ended') }}</strong>
+        <strong v-if="state.status !== 'playing'">{{ t('game.ended') }}</strong>
       </div>
       <div v-if="state.status === 'playing'" class="pending-text">
         {{ t('game.preview') }}

@@ -638,7 +638,7 @@ button {
 }
 
 .game-settings-card {
-  gap: 12px;
+  gap: 20px;
 }
 
 .game-status-grid {
@@ -779,7 +779,7 @@ button {
 
 .settings-field {
   display: grid;
-  gap: 6px;
+  gap: 10px;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -787,7 +787,7 @@ button {
 }
 
 .settings-field legend {
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   padding: 0;
   color: var(--surface-muted);
   font-size: 14px;
@@ -856,7 +856,11 @@ button {
 .settings-toggle-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
+  gap: 14px 18px;
+}
+
+.game-settings-card .button-row {
+  margin-top: 4px;
 }
 
 .button-row {
@@ -2605,6 +2609,66 @@ body::after {
   .mode-card__illustration {
     transform: scale(0.82);
     transform-origin: top right;
+  }
+}
+
+/* Give each locale its own typographic rhythm and room for translated controls. */
+:root[lang="zh-CN"] .app-title,
+:root[lang="zh-CN"] .moon-hall__hero h1,
+:root[lang="zh-CN"] .mode-card h2,
+:root[lang="zh-CN"] .app-nav .app-brand-link {
+  font-weight: 600;
+  font-synthesis: weight;
+  -webkit-text-stroke: 0.18px currentColor;
+}
+
+:root[lang="en-US"] {
+  font-family: "Segoe UI", Inter, Arial, sans-serif;
+}
+
+:root[lang="en-US"] .app-title,
+:root[lang="en-US"] .moon-hall__hero h1,
+:root[lang="en-US"] .mode-card h2,
+:root[lang="en-US"] .app-nav .app-brand-link {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.025em;
+}
+
+:root[lang="en-US"] .subtitle,
+:root[lang="en-US"] .moon-hall__hero > p:last-child,
+:root[lang="en-US"] .mode-card > p:not(.mode-card__kicker) {
+  font-weight: 600;
+}
+
+:root[lang="en-US"] .game-status-grid div {
+  grid-template-columns: 132px minmax(0, 1fr);
+}
+
+:root[lang="en-US"] .analysis-grid div {
+  grid-template-columns: 148px minmax(0, 1fr);
+}
+
+:root[lang="en-US"] .segmented-control span,
+:root[lang="en-US"] .toggle-row,
+:root[lang="en-US"] .button-row button {
+  font-weight: 700;
+}
+
+:root[lang="en-US"] .settings-toggle-grid {
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+:root[lang="en-US"] .game-settings-card .button-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  :root[lang="en-US"] .game-status-grid div,
+  :root[lang="en-US"] .analysis-grid div,
+  :root[lang="en-US"] .game-settings-card .button-row {
+    grid-template-columns: 1fr;
   }
 }
 
