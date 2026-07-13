@@ -2,6 +2,7 @@ import type { AiLevel, AiMoveRequest, AiMoveResponse, CreateGameRequest, GameSta
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
+export class ApiError extends Error { constructor(public status: number, public code: string, public params: Record<string, unknown>) { super(code); } }
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -12,16 +13,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    let message = `请求失败：${response.status}`;
+    let code = "unknown";
+    let params: Record<string, unknown> = {};
     try {
-      const body = (await response.json()) as { detail?: string };
-      if (body.detail) {
-        message = body.detail;
-      }
+      const body = (await response.json()) as { detail?: { code?: string; params?: Record<string, unknown> } };
+      if (body.detail?.code) { code = body.detail.code; params = body.detail.params ?? {}; }
     } catch {
       // Keep the generic message when the server does not return JSON.
     }
-    throw new Error(message);
+    throw new ApiError(response.status, code, params);
   }
 
   return response.json() as Promise<T>;

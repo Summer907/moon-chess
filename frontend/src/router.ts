@@ -6,6 +6,7 @@ import sandroneIcon from "../../assets/sandrone.ico";
 import LunarOrbitView from "./views/LunarOrbitView.vue";
 import MoonHallView from "./views/MoonHallView.vue";
 import SilverMoonTeaPartyView from "./views/SilverMoonTeaPartyView.vue";
+import { syncDocumentTitle } from "./i18n/locale";
 
 const routeIcons: Record<string, string> = {
   "moon-hall": coupleIcon,
@@ -31,19 +32,19 @@ export const router = createRouter({
       path: "/",
       name: "moon-hall",
       component: MoonHallView,
-      meta: { title: "月亮棋｜月下对弈" },
+      meta: { titleKey: "meta.moonHall" },
     },
     {
       path: "/tea-party",
       name: "tea-party",
       component: SilverMoonTeaPartyView,
-      meta: { title: "银月茶会｜月亮棋模拟器" },
+      meta: { titleKey: "meta.teaParty" },
     },
     {
       path: "/lunar-orbit",
       name: "lunar-orbit",
       component: LunarOrbitView,
-      meta: { title: "月轨推演｜月亮棋模拟器" },
+      meta: { titleKey: "meta.lunarOrbit" },
     },
   ],
 });
@@ -53,9 +54,5 @@ router.afterEach((to) => {
   if (iconUrl) {
     setFavicon(iconUrl);
   }
-  if (to.meta?.title) {
-    document.title = to.meta.title as string;
-    return;
-  }
-  document.title = "月亮棋｜月下对弈";
+  syncDocumentTitle(to);
 });

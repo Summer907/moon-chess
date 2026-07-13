@@ -18,7 +18,7 @@ export interface MoveEvent {
   position: number;
   winner: Player | null;
   line: number[] | null;
-  note: string;
+  removal_phase: "before_move" | "after_move" | null;
 }
 
 export interface Analysis {
@@ -28,8 +28,9 @@ export interface Analysis {
   retained_pieces_after_removal: Piece[];
   current_winning_moves: number[];
   opponent_real_threats: number[];
-  explanation: string[];
 }
+
+export interface AiReason { code: string; params: Record<string, unknown>; }
 
 export interface GameState {
   game_id: string;
@@ -63,7 +64,7 @@ export interface AiMoveEvaluation {
   score: number | null;
   outcome: AiOutcome;
   plies: number | null;
-  reason: string;
+  reason_codes: AiReason[];
 }
 
 export interface AiMoveResponse {
@@ -71,8 +72,9 @@ export interface AiMoveResponse {
   move: number;
   level: AiLevel;
   outcome: AiOutcome;
-  confidence: string;
-  reason: string[];
+  player: Player;
+  confidence: "random" | "heuristic" | "search";
+  reason_codes: AiReason[];
   evaluated_moves: AiMoveEvaluation[];
   applied: boolean;
 }

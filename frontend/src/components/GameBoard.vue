@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
 import GameCell from "./GameCell.vue";
 import type { GameState, Piece, Player } from "../types/game";
@@ -21,6 +22,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   place: [position: number];
 }>();
+const { t } = useI18n();
 
 const positions = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const removalPreview = computed(() => props.state.pending_removal ?? props.state.upcoming_removal);
@@ -93,15 +95,15 @@ function isOpponentRealThreat(position: number): boolean {
 </script>
 
 <template>
-  <section class="board-panel" aria-label="月亮棋棋盘">
+  <section class="board-panel" :aria-label="t('game.board')">
     <div class="board-meta">
       <div>
-        <span>第 {{ state.move_number }} 手后</span>
-        <strong>{{ state.status === "playing" ? `当前：${playerText(state.current_player)}` : "对局结束" }}</strong>
+        <span>{{ t('common.afterMove', { count: state.move_number }) }}</span>
+        <strong>{{ state.status === "playing" ? t('game.current', { player: playerText(state.current_player) }) : t('game.ended') }}</strong>
       </div>
       <div v-if="state.status === 'playing'" class="pending-text">
-        消失预告：
-        <strong>{{ showRemovalPreview ? (removalPreview ? pieceDescription(removalPreview) : "无") : "已隐藏" }}</strong>
+        {{ t('game.preview') }}
+        <strong>{{ showRemovalPreview ? (removalPreview ? pieceDescription(removalPreview) : t('common.none')) : t('common.hidden') }}</strong>
       </div>
     </div>
 

@@ -9,7 +9,7 @@ from ..protection import _positive_int
 from ..models import Player
 from .heuristics import score_move
 from .models import AiMoveEvaluation, AiOutcome
-from .explanations import outcome_text
+from .models import AiReason
 
 
 CompactState = tuple[int, int, Player, tuple[int, ...], tuple[int, ...]]
@@ -45,7 +45,7 @@ class HardSolver:
                 score=self._display_score(game, result),
                 outcome=result.outcome,
                 plies=result.plies,
-                reason=f"搜索结果：{outcome_text(result.outcome)}，距离 {result.plies} 手。",
+                reason_codes=[AiReason(code="search_result", params={"outcome": result.outcome, "plies": result.plies})],
             )
             for result in candidates
             if result.move is not None

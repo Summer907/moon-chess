@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
 
 import { createGame, makeAiMove, makeMove, undo } from "../api/client";
@@ -20,6 +21,7 @@ import {
 } from "../utils/playerDisplay";
 import { useElementHeightCssVar } from "../utils/useElementHeightCssVar";
 import { loadGamePreferences, saveGamePreferences } from "../utils/useGamePreferences";
+import { errorText } from "../i18n/errorMap";
 
 const THINKING_DELAYS: Record<AiLevel, { min: number; max: number }> = {
   easy: { min: 500, max: 900 },
@@ -40,10 +42,11 @@ const showLegalMoves = ref(true);
 const showWinningMoves = ref(true);
 const showThreatMoves = ref(true);
 const showRemovalPreview = ref(true);
+const { t } = useI18n();
 
 let stateToken = 0;
 
-const displayMap = computed(() => createPlayerDisplay(travelerSide.value));
+const displayMap = computed(() => createPlayerDisplay(travelerSide.value, t));
 const { elementRef: boardPanelRef, heightStyle: boardHeightStyle } =
   useElementHeightCssVar("--game-board-panel-height");
 
@@ -69,12 +72,12 @@ const statusPillText = computed(() => {
     return "";
   }
   if (gameState.value.status !== "playing") {
-    return "对局结束";
+    return t("game.ended");
   }
   if (aiThinking.value) {
-    return "哥伦比娅思考中……";
+    return t("teaParty.thinking");
   }
-  return `轮到 ${formatPlayer(gameState.value.current_player, displayMap.value)}`;
+  return t("game.yourTurn", { player: formatPlayer(gameState.value.current_player, displayMap.value, t("common.none")) });
 });
 
 function clearAiTimeout() {
@@ -161,7 +164,7 @@ async function startNewGame() {
     scheduleAiMoveIfNeeded(state, token);
   } catch (error) {
     if (isCurrentToken(token)) {
-      errorMessage.value = error instanceof Error ? error.message : "新开棋局失败。";
+      errorMessage.value = errorText(error, t);
     }
   } finally {
     if (isCurrentToken(token)) {
@@ -213,7 +216,7 @@ async function undoMove() {
     gameState.value = state;
   } catch (error) {
     if (isCurrentToken(token)) {
-      errorMessage.value = error instanceof Error ? error.message : "悔棋失败。";
+      errorMessage.value = errorText(error, t);
     }
   } finally {
     if (isCurrentToken(token)) {
@@ -241,7 +244,7 @@ async function placeAt(position: number) {
     scheduleAiMoveIfNeeded(state, token);
   } catch (error) {
     if (isCurrentToken(token)) {
-      errorMessage.value = error instanceof Error ? error.message : "落子失败。";
+      errorMessage.value = errorText(error, t);
     }
   } finally {
     if (isCurrentToken(token)) {
@@ -290,7 +293,7 @@ async function runAiMove(gameId: string, moveNumber: number, token: number) {
     gameState.value = response.state;
   } catch (error) {
     if (isCurrentToken(token)) {
-      errorMessage.value = error instanceof Error ? error.message : "哥伦比娅落子失败。";
+      errorMessage.value = errorText(error, t);
     }
   } finally {
     if (isCurrentToken(token)) {
@@ -311,9 +314,8 @@ onBeforeUnmount(() => {
 <template>
   <header class="app-header">
     <div class="title-block">
-      <RouterLink class="return-home-link" to="/">← 返回银月之庭</RouterLink>
-      <h1 class="app-title">月亮棋·银月茶会</h1>
-      <p class="subtitle">与银月对弈；若想取胜，须先看清哪颗月亮将要落下。</p>
+      <RouterLink class="return-home-link" to="/">{{ t('common.backHome') }}</RouterLink>
+      <h1 class="app-title">{{ t('teaParty.title') }}</h1><p class="subtitle">{{ t('teaParty.subtitle') }}</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
       <span>{{ statusPillText }}</span>
@@ -340,19 +342,19 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <div class="mobile-game-actions button-row" aria-label="棋局操作">
-      <button type="button" :disabled="loading" title="清空当前棋局，重新开始一场银月茶会。" @click="startNewGame">
-        再启银月
+    <div class="mobile-game-actions button-row" :aria-label="t('teaParty.actions')">
+      <button type="button" :disabled="loading" :title="t('teaParty.restartTitle')" @click="startNewGame">
+        {{ t('teaParty.restart') }}
       </button>
-      <button type="button" :disabled="loading || !canUndo" title="沿月影回溯，撤回上一轮对弈。" @click="undoMove">
-        逆转月轨
+      <button type="button" :disabled="loading || !canUndo" :title="t('teaParty.undoTitle')" @click="undoMove">
+        {{ t('teaParty.undo') }}
       </button>
     </div>
 
     <div class="game-side-stack game-side-stack--duo">
       <ResponsiveDisclosure
         class="disclosure-status"
-        title="当前状态"
+        :title="t('game.status')"
         :status-text="statusPillText"
         :force-open="gameState.status === 'won'"
       >
@@ -363,7 +365,7 @@ onBeforeUnmount(() => {
           :show-removal-preview="showRemovalPreview"
         />
       </ResponsiveDisclosure>
-      <ResponsiveDisclosure class="disclosure-settings" title="对弈配置">
+      <ResponsiveDisclosure class="disclosure-settings" :title="t('settings.configuration')">
         <GameSettingsCard
         :traveler-side="travelerSide"
         :ai-level="aiLevel"
@@ -393,5 +395,5 @@ onBeforeUnmount(() => {
     <GameHistoryList :history="gameState.history" :display-map="displayMap" />
   </section>
 
-  <section v-else class="loading-panel">正在连接后端...</section>
+  <section v-else class="loading-panel">{{ t('common.loading') }}</section>
 </template>

@@ -15,7 +15,7 @@ from fastapi import HTTPException, Request, Response
 def _positive_int(name: str, default: int) -> int:
     value = int(os.getenv(name, str(default)))
     if value <= 0:
-        raise ValueError(f"{name} 必须为正整数。")
+        raise ValueError(f"{name} must be a positive integer.")
     return value
 
 
@@ -118,7 +118,7 @@ def enforce_rate_limit(
     if not result.allowed:
         raise HTTPException(
             status_code=429,
-            detail=f"请求过于频繁，请在 {result.retry_after} 秒后重试。",
+            detail={"code": "rate_limited", "params": {"retry_after": result.retry_after}},
             headers={
                 "Retry-After": str(result.retry_after),
                 "RateLimit-Limit": str(result.limit),
@@ -134,7 +134,7 @@ def ai_slot(level: str) -> Iterator[None]:
     if not semaphore.acquire(blocking=False):
         raise HTTPException(
             status_code=503,
-            detail="AI 当前繁忙，请稍后重试。",
+            detail={"code": "ai_busy", "params": {}},
             headers={"Retry-After": "1"},
         )
     try:

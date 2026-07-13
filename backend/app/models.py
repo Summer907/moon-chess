@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ class MoveEvent(BaseModel):
     position: int = Field(ge=1, le=9)
     winner: Player | None
     line: list[int] | None
-    note: str
+    removal_phase: Literal["before_move", "after_move"] | None
 
 
 class Analysis(BaseModel):
@@ -34,7 +34,11 @@ class Analysis(BaseModel):
     retained_pieces_after_removal: list[Piece]
     current_winning_moves: list[int]
     opponent_real_threats: list[int]
-    explanation: list[str]
+
+
+class ApiErrorDetail(BaseModel):
+    code: str
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class GameState(BaseModel):

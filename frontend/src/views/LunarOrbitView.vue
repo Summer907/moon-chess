@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import { RouterLink } from "vue-router";
 
 import { createGame, makeMove, undo } from "../api/client";
@@ -20,6 +21,7 @@ import {
 } from "../utils/playerDisplay";
 import { useElementHeightCssVar } from "../utils/useElementHeightCssVar";
 import { loadGamePreferences, saveGamePreferences } from "../utils/useGamePreferences";
+import { errorText } from "../i18n/errorMap";
 
 const gameState = ref<GameState | null>(null);
 const loading = ref(false);
@@ -31,8 +33,9 @@ const showLegalMoves = ref(true);
 const showWinningMoves = ref(true);
 const showThreatMoves = ref(true);
 const showRemovalPreview = ref(true);
+const { t } = useI18n();
 
-const displayMap = computed(() => createPlayerDisplay(travelerSide.value));
+const displayMap = computed(() => createPlayerDisplay(travelerSide.value, t));
 const { elementRef: boardPanelRef, heightStyle: boardHeightStyle } =
   useElementHeightCssVar("--game-board-panel-height");
 
@@ -44,9 +47,9 @@ const statusPillText = computed(() => {
     return "";
   }
   if (gameState.value.status !== "playing") {
-    return "对局结束";
+    return t("game.ended");
   }
-  return `轮到 ${formatPlayer(gameState.value.current_player, displayMap.value)}`;
+  return t("game.yourTurn", { player: formatPlayer(gameState.value.current_player, displayMap.value, t("common.none")) });
 });
 
 async function runAction(action: () => Promise<GameState>) {
@@ -55,7 +58,7 @@ async function runAction(action: () => Promise<GameState>) {
   try {
     gameState.value = await action();
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : "操作失败。";
+    errorMessage.value = errorText(error, t);
   } finally {
     loading.value = false;
   }
@@ -115,9 +118,8 @@ onMounted(() => {
 <template>
   <header class="app-header">
     <div class="title-block">
-      <RouterLink class="return-home-link" to="/">← 返回银月之庭</RouterLink>
-      <h1 class="app-title">月亮棋·月轨推演</h1>
-      <p class="subtitle">三是表象，四是本征；七，是二者交叠后的垂直超越之径。</p>
+      <RouterLink class="return-home-link" to="/">{{ t('common.backHome') }}</RouterLink>
+      <h1 class="app-title">{{ t('lunarOrbit.title') }}</h1><p class="subtitle">{{ t('lunarOrbit.subtitle') }}</p>
     </div>
     <div v-if="gameState" class="status-pill" :class="`status-${gameState.status}`">
       <span>{{ statusPillText }}</span>
@@ -144,19 +146,19 @@ onMounted(() => {
       />
     </div>
 
-    <div class="mobile-game-actions button-row" aria-label="推演操作">
-      <button type="button" :disabled="loading" title="清空当前棋局，重新开始一次月轨推演。" @click="startNewGame">
-        重新推演
+    <div class="mobile-game-actions button-row" :aria-label="t('lunarOrbit.actions')">
+      <button type="button" :disabled="loading" :title="t('lunarOrbit.restartTitle')" @click="startNewGame">
+        {{ t('lunarOrbit.restart') }}
       </button>
-      <button type="button" :disabled="loading || !canUndo" title="撤回上一步推演。" @click="undoMove">
-        回退一步
+      <button type="button" :disabled="loading || !canUndo" :title="t('lunarOrbit.undoTitle')" @click="undoMove">
+        {{ t('lunarOrbit.undo') }}
       </button>
     </div>
 
     <div class="game-side-stack game-side-stack--analysis">
       <ResponsiveDisclosure
         class="disclosure-status"
-        title="当前状态"
+        :title="t('game.status')"
         :status-text="statusPillText"
         :force-open="gameState.status === 'won'"
       >
@@ -166,16 +168,16 @@ onMounted(() => {
           :show-removal-preview="showRemovalPreview"
         />
       </ResponsiveDisclosure>
-      <ResponsiveDisclosure class="disclosure-analysis" title="推演详情" :default-mobile-open="true">
+      <ResponsiveDisclosure class="disclosure-analysis" :title="t('analysis.title')" :default-mobile-open="true">
         <LunarOrbitAnalysisCard :state="gameState" :display-map="displayMap" />
       </ResponsiveDisclosure>
-      <ResponsiveDisclosure class="disclosure-settings" title="推演配置">
+      <ResponsiveDisclosure class="disclosure-settings" :title="t('lunarOrbit.settings')">
         <GameSettingsCard
-        title="推演配置"
-        new-game-label="重新推演"
-        new-game-title="清空当前棋局，重新开始一次月轨推演。"
-        undo-label="回退一步"
-        undo-title="撤回上一步推演。"
+        :title="t('lunarOrbit.settings')"
+        :new-game-label="t('lunarOrbit.restart')"
+        :new-game-title="t('lunarOrbit.restartTitle')"
+        :undo-label="t('lunarOrbit.undo')"
+        :undo-title="t('lunarOrbit.undoTitle')"
         :traveler-side="travelerSide"
         :show-ai-level="false"
         :loading="loading"
@@ -202,5 +204,5 @@ onMounted(() => {
     <GameHistoryList :history="gameState.history" :display-map="displayMap" />
   </section>
 
-  <section v-else class="loading-panel">正在连接后端...</section>
+  <section v-else class="loading-panel">{{ t('common.loading') }}</section>
 </template>

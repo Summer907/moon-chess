@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { AiLevel, AiMoveResponse, AiOutcome } from "../types/game";
+import { useI18n } from "vue-i18n";
 
 defineProps<{
   level: AiLevel;
@@ -16,45 +18,42 @@ defineEmits<{
   "update:autoReply": [value: boolean];
 }>();
 
-const levels: Array<{ value: AiLevel; label: string }> = [
-  { value: "easy", label: "虹月 · 简单" },
-  { value: "medium", label: "恒月 · 中等" },
-  { value: "hard", label: "霜月 · 困难" },
-];
+const { t } = useI18n();
+const levels = computed((): Array<{ value: AiLevel; label: string }> => [
+  { value: "easy", label: t("difficulty.easy") }, { value: "medium", label: t("difficulty.medium") }, { value: "hard", label: t("difficulty.hard") },
+]);
+function reasonText(reason: { code: string; params: Record<string, unknown> }): string { return t(`ai.${reason.code}`, reason.params); }
 
 function levelLabel(level: AiLevel): string {
-  return levels.find((item) => item.value === level)?.label ?? level;
+  return levels.value.find((item) => item.value === level)?.label ?? level;
 }
 
 function outcomeLabel(outcome: AiOutcome): string {
   const labels: Record<AiOutcome, string> = {
-    win: "胜",
-    draw: "和棋",
-    loss: "负",
-    unknown: "未知",
+    win: t("ai.win"), draw: t("game.draw"), loss: t("ai.loss"), unknown: t("ai.unknown"),
   };
   return labels[outcome];
 }
 
 function scoreText(score: number | null): string {
-  return score === null ? "无" : score.toFixed(1);
+  return score === null ? t("common.none") : score.toFixed(1);
 }
 
 function pliesText(plies: number | null): string {
-  return plies === null ? "无" : `${plies} 手`;
+  return plies === null ? t("common.none") : t("common.move", { count: plies });
 }
 </script>
 
 <template>
-  <section class="ai-panel" aria-label="AI 控制区">
+  <section class="ai-panel" :aria-label="t('ai.panel')">
     <div class="section-title">
-      <span>规则 AI</span>
+      <span>{{ t('ai.title') }}</span>
       <strong>{{ response ? levelLabel(response.level) : levelLabel(level) }}</strong>
     </div>
 
     <div class="ai-controls">
       <label class="select-row">
-        <span>难度</span>
+        <span>{{ t('ai.difficulty') }}</span>
         <select
           :value="level"
           :disabled="loading"
@@ -67,8 +66,8 @@ function pliesText(plies: number | null): string {
       </label>
 
       <div class="button-row">
-        <button type="button" :disabled="loading || disabled" @click="$emit('hint')">查看推荐</button>
-        <button type="button" :disabled="loading || disabled" @click="$emit('aiMove')">AI 落子</button>
+        <button type="button" :disabled="loading || disabled" @click="$emit('hint')">{{ t('ai.hint') }}</button>
+        <button type="button" :disabled="loading || disabled" @click="$emit('aiMove')">{{ t('ai.move') }}</button>
       </div>
 
       <label class="toggle-row">
@@ -78,48 +77,44 @@ function pliesText(plies: number | null): string {
           :disabled="loading"
           @change="$emit('update:autoReply', ($event.target as HTMLInputElement).checked)"
         />
-        <span>AI 自动回应</span>
+        <span>{{ t('ai.autoReply') }}</span>
       </label>
     </div>
 
-    <section v-if="response" class="ai-response" aria-label="AI 说明区">
+    <section v-if="response" class="ai-response" :aria-label="t('ai.explanation')">
       <dl class="ai-summary">
         <div>
-          <dt>{{ response.applied ? "实际落子" : "推荐落子" }}</dt>
+          <dt>{{ response.applied ? t('ai.actual') : t('ai.recommended') }}</dt>
           <dd>{{ response.move }}</dd>
         </div>
         <div>
-          <dt>理论结果</dt>
+          <dt>{{ t('ai.outcome') }}</dt>
           <dd>{{ outcomeLabel(response.outcome) }}</dd>
         </div>
         <div>
-          <dt>判断方式</dt>
+          <dt>{{ t('ai.confidence') }}</dt>
           <dd>{{ response.confidence }}</dd>
         </div>
       </dl>
 
       <ul class="ai-reason-list">
-        <li v-for="line in response.reason" :key="line">{{ line }}</li>
+        <li v-for="(reason, index) in response.reason_codes" :key="`${reason.code}-${index}`">{{ reasonText(reason) }}</li>
       </ul>
 
-      <div class="evaluation-table" aria-label="候选落子评估">
+      <div class="evaluation-table" :aria-label="t('ai.candidates')">
         <div class="evaluation-header">
-          <span>点位</span>
-          <span>结果</span>
-          <span>分数</span>
-          <span>距离</span>
-          <span>理由</span>
+          <span>{{ t('ai.point') }}</span><span>{{ t('ai.result') }}</span><span>{{ t('ai.score') }}</span><span>{{ t('ai.distance') }}</span><span>{{ t('ai.reason') }}</span>
         </div>
         <div v-for="item in response.evaluated_moves" :key="item.move" class="evaluation-row">
           <strong>{{ item.move }}</strong>
           <span>{{ outcomeLabel(item.outcome) }}</span>
           <span>{{ scoreText(item.score) }}</span>
           <span>{{ pliesText(item.plies) }}</span>
-          <span>{{ item.reason }}</span>
+          <span>{{ item.reason_codes.map(reasonText).join(' ') }}</span>
         </div>
       </div>
     </section>
 
-    <p v-else class="empty-text">尚未生成 AI 说明。</p>
+    <p v-else class="empty-text">{{ t('ai.empty') }}</p>
   </section>
 </template>

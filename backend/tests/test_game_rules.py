@@ -80,8 +80,10 @@ def test_current_player_can_place_on_position_that_just_became_empty() -> None:
 def test_cannot_place_on_position_that_is_still_occupied() -> None:
     game = game_after_six()
 
-    with pytest.raises(GameError, match="位置 2 当前不可落子"):
+    with pytest.raises(GameError) as exc_info:
         game.move(2)
+    assert exc_info.value.code == "invalid_move"
+    assert exc_info.value.params == {"position": 2}
 
 
 def test_three_in_a_row_wins_immediately_after_placement() -> None:

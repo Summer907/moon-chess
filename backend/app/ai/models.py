@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -9,6 +9,12 @@ from ..models import GameState
 
 AiLevel = Literal["easy", "medium", "hard"]
 AiOutcome = Literal["win", "draw", "loss", "unknown"]
+AiConfidence = Literal["random", "heuristic", "search"]
+
+
+class AiReason(BaseModel):
+    code: str
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 class AiMoveRequest(BaseModel):
@@ -22,7 +28,7 @@ class AiMoveEvaluation(BaseModel):
     score: float | None
     outcome: AiOutcome
     plies: int | None
-    reason: str
+    reason_codes: list[AiReason]
 
 
 class AiMoveResponse(BaseModel):
@@ -30,7 +36,8 @@ class AiMoveResponse(BaseModel):
     move: int = Field(ge=1, le=9)
     level: AiLevel
     outcome: AiOutcome
-    confidence: str
-    reason: list[str]
+    player: Literal["X", "O"]
+    confidence: AiConfidence
+    reason_codes: list[AiReason]
     evaluated_moves: list[AiMoveEvaluation]
     applied: bool

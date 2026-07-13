@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from ..game import WINNING_LINES, MoonChessGame, other_player, sorted_player_pieces
 from ..models import Piece, Player
+from .models import AiReason
 
 
 CENTER = 5
@@ -15,42 +16,42 @@ EDGES = {2, 4, 6, 8}
 class HeuristicResult:
     move: int
     score: float
-    reason: str
+    reason_codes: list[AiReason]
 
 
 def score_move(game: MoonChessGame, move: int) -> HeuristicResult:
     player = game.current_player
     opponent = other_player(player)
     score = 0.0
-    reasons: list[str] = []
+    reasons: list[AiReason] = []
 
     if move == CENTER:
         score += 20
-        reasons.append("+20 中心")
+        reasons.append(AiReason(code="position_bonus", params={"kind": "center", "points": 20}))
     elif move in CORNERS:
         score += 12
-        reasons.append("+12 角")
+        reasons.append(AiReason(code="position_bonus", params={"kind": "corner", "points": 12}))
     elif move in EDGES:
         score += 8
-        reasons.append("+8 边")
+        reasons.append(AiReason(code="position_bonus", params={"kind": "edge", "points": 8}))
 
     if creates_future_threat(game, player, move):
         score += 50
-        reasons.append("+50 制造真实威胁")
+        reasons.append(AiReason(code="creates_real_threat", params={"points": 50}))
 
     if keeps_own_pair_aligned(game, player, move):
         score += 30
-        reasons.append("+30 自己两子共线")
+        reasons.append(AiReason(code="aligns_own_pair", params={"points": 30}))
 
     if blocks_opponent_pair(game, opponent, move):
         score += 25
-        reasons.append("+25 阻断对方共线")
+        reasons.append(AiReason(code="blocks_opponent_pair", params={"points": 25}))
 
     if move in game.winning_moves_for(opponent):
         score += 10
-        reasons.append("+10 占住对手需要点")
+        reasons.append(AiReason(code="occupies_opponent_winning_move", params={"points": 10}))
 
-    return HeuristicResult(move=move, score=score, reason="，".join(reasons) or "基础合法落子")
+    return HeuristicResult(move=move, score=score, reason_codes=reasons or [AiReason(code="legal_move")])
 
 
 def score_moves(game: MoonChessGame, moves: list[int] | None = None) -> list[HeuristicResult]:

@@ -25,7 +25,12 @@ DRAW_AFTER_MOVES = 14
 
 
 class GameError(ValueError):
-    """Raised when a move or game operation is invalid."""
+    """A stable API error that never carries presentation text."""
+
+    def __init__(self, code: str, **params: object) -> None:
+        self.code = code
+        self.params = params
+        super().__init__(code)
 
 
 def other_player(player: Player) -> Player:
@@ -104,14 +109,14 @@ class MoonChessGame:
 
     def move(self, position: int) -> GameState:
         if self.status != "playing":
-            raise GameError("棋局已结束，不能继续落子。")
+            raise GameError("game_finished")
 
         player = self.current_player
         pending = self.pending_removal(player)
         pieces_after_removal = self._pieces_without(pending)
         legal_moves = self.legal_moves(player)
         if position not in legal_moves:
-            raise GameError(f"位置 {position} 当前不可落子。")
+            raise GameError("invalid_move", position=position)
 
         placed_piece = Piece(
             id=f"{player}{self._next_piece_order(player)}",
@@ -129,16 +134,7 @@ class MoonChessGame:
             removed_after_move = self._advance_to_next_player()
 
         removed_piece = pending or removed_after_move
-        note = self._move_note(
-            self.move_number,
-            player,
-            pending,
-            removed_after_move,
-            placed_piece,
-            position,
-            winner,
-            line,
-        )
+        removal_phase = "before_move" if pending else "after_move" if removed_after_move else None
         event = MoveEvent(
             move_number=self.move_number,
             player=player,
@@ -147,7 +143,7 @@ class MoonChessGame:
             position=position,
             winner=winner,
             line=line,
-            note=note,
+            removal_phase=removal_phase,
         )
         self.history.append(event)
 
@@ -164,14 +160,14 @@ class MoonChessGame:
 
     def apply_move_for_search(self, position: int) -> None:
         if self.status != "playing":
-            raise GameError("棋局已结束，不能继续落子。")
+            raise GameError("game_finished")
 
         player = self.current_player
         pending = self.pending_removal(player)
         pieces_after_removal = [piece for piece in self.pieces if not pending or piece.id != pending.id]
         occupied = {piece.position for piece in pieces_after_removal}
         if position < 1 or position > 9 or position in occupied:
-            raise GameError(f"位置 {position} 当前不可落子。")
+            raise GameError("invalid_move", position=position)
 
         next_order = self._next_piece_order(player)
         placed_piece = Piece(
@@ -251,15 +247,6 @@ class MoonChessGame:
         current_winning_moves = self.winning_moves_for(self.current_player)
         opponent = other_player(self.current_player)
         opponent_real_threats = self.winning_moves_for(opponent)
-        explanation = self._analysis_explanation(
-            pending,
-            upcoming,
-            retained,
-            current_winning_moves,
-            opponent,
-            opponent_real_threats,
-        )
-
         return Analysis(
             current_player=self.current_player,
             pending_removal=pending.model_copy() if pending else None,
@@ -267,7 +254,6 @@ class MoonChessGame:
             retained_pieces_after_removal=[piece.model_copy() for piece in retained],
             current_winning_moves=current_winning_moves,
             opponent_real_threats=opponent_real_threats,
-            explanation=explanation,
         )
 
     def _winning_moves_for(self, player: Player) -> list[int]:
@@ -283,10 +269,6 @@ class MoonChessGame:
         return moves
 
     def _finished_analysis(self) -> Analysis:
-        if self.status == "won":
-            explanation = [f"棋局已结束，{self.winner} 获胜。"]
-        else:
-            explanation = ["棋局已结束，判定为平局。"]
         return Analysis(
             current_player=self.current_player,
             pending_removal=None,
@@ -294,43 +276,7 @@ class MoonChessGame:
             retained_pieces_after_removal=sorted_player_pieces(self.pieces, self.current_player),
             current_winning_moves=[],
             opponent_real_threats=[],
-            explanation=explanation,
         )
-
-    def _analysis_explanation(
-        self,
-        pending: Piece | None,
-        upcoming: Piece | None,
-        retained: list[Piece],
-        current_winning_moves: list[int],
-        opponent: Player,
-        opponent_real_threats: list[int],
-    ) -> list[str]:
-        lines: list[str] = []
-        if pending:
-            lines.append(f"轮到 {self.current_player} 行动，{pending.id} 会先消失。")
-            retained_ids = "、".join(piece.id for piece in retained) or "没有棋子"
-            lines.append(f"删除 {pending.id} 后，{self.current_player} 保留 {retained_ids}。")
-        else:
-            lines.append(f"轮到 {self.current_player} 行动，当前不会有自己的棋子先消失。")
-
-        if upcoming:
-            lines.append(f"若本手没有结束棋局，下一回合前 {upcoming.id} 会消失。")
-        else:
-            lines.append("本手结束后暂时没有旧子消失预告。")
-
-        if current_winning_moves:
-            moves = "、".join(str(move) for move in current_winning_moves)
-            lines.append(f"{self.current_player} 当前直接胜点是 {moves}。")
-        else:
-            lines.append(f"{self.current_player} 当前没有直接胜点。")
-
-        if opponent_real_threats:
-            threats = "、".join(str(move) for move in opponent_real_threats)
-            lines.append(f"{opponent} 下一回合的真实威胁是 {threats}。")
-        else:
-            lines.append(f"{opponent} 下一回合没有真实威胁。")
-        return lines
 
     def _pieces_without(self, removed_piece: Piece | None, pieces: list[Piece] | None = None) -> list[Piece]:
         source_pieces = pieces or self.pieces
@@ -353,26 +299,6 @@ class MoonChessGame:
             self.pieces = self._pieces_without(removed_piece)
         return removed_piece.model_copy() if removed_piece else None
 
-    def _move_note(
-        self,
-        move_number: int,
-        player: Player,
-        removed_before_move: Piece | None,
-        removed_after_move: Piece | None,
-        placed_piece: Piece,
-        position: int,
-        winner: Player | None,
-        line: list[int] | None,
-    ) -> str:
-        if removed_before_move:
-            note = f"第 {move_number} 手：{removed_before_move.id} 先消失，{placed_piece.id} 落在 {position}"
-        else:
-            note = f"第 {move_number} 手：{player} 落子，{placed_piece.id} 落在 {position}"
-        if removed_after_move:
-            note += f"，随后 {removed_after_move.id} 消失"
-        if winner and line:
-            note += f"，{winner} 形成 {'-'.join(str(value) for value in line)} 获胜"
-        return note + "。"
 
     def _reset_runtime_state(self) -> None:
         self.current_player = self.config.first_player
@@ -425,7 +351,7 @@ class GameStore:
             self._evict_owner_games_locked(owner_ip)
             self._evict_to_capacity_locked()
             if len(self._games) >= self._max_games:
-                raise GameError("服务器当前棋局过多，请稍后重试。")
+                raise GameError("game_capacity_reached")
             game = MoonChessGame(first_player=first_player, max_moves=max_moves)
             self._games[game.game_id] = StoredGame(game=game, owner_ip=owner_ip)
             return game.state()
@@ -452,7 +378,7 @@ class GameStore:
         try:
             entry = self._games[game_id]
         except KeyError as exc:
-            raise GameError("棋局不存在。") from exc
+            raise GameError("game_not_found") from exc
         entry.last_accessed = time.monotonic()
         return entry
 

@@ -93,4 +93,5 @@ def test_ai_rejects_finished_game() -> None:
 
     response = client.get(f"/api/games/{game_id}/hint", params={"level": "medium"})
 
-    assert response.status_code == 400
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "game_finished"

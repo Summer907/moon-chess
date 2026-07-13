@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +39,22 @@ store = GameStore(
 )
 
 
+ERROR_STATUS = {
+    "game_not_found": 404, "game_finished": 409, "invalid_move": 422,
+    "no_legal_moves": 409, "ai_illegal_move": 500, "game_capacity_reached": 503,
+}
+
+
+def game_http_error(exc: GameError) -> HTTPException:
+    return HTTPException(status_code=ERROR_STATUS.get(exc.code, 400), detail={"code": exc.code, "params": exc.params})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_: Request, exc: RequestValidationError):
+    fields = [".".join(str(part) for part in item["loc"]) for item in exc.errors()]
+    return Response(content=__import__("json").dumps({"detail": {"code": "validation_error", "params": {"fields": fields}}}), status_code=422, media_type="application/json")
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -59,7 +76,9 @@ def create_game(
             owner_ip=client_ip(request),
         )
     except GameError as exc:
-        raise HTTPException(status_code=503, detail=str(exc), headers={"Retry-After": "1"}) from exc
+        error = game_http_error(exc)
+        error.headers = {"Retry-After": "1"}
+        raise error from exc
 
 
 @app.get("/api/games/{game_id}", response_model=GameState)
@@ -69,7 +88,7 @@ def get_game(game_id: str, request: Request, response: Response) -> GameState:
         with store.locked(game_id) as game:
             return game.state()
     except GameError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
 
 
 @app.post("/api/games/{game_id}/moves", response_model=GameState)
@@ -79,7 +98,7 @@ def make_move(game_id: str, request: MoveRequest, http_request: Request, respons
         with store.locked(game_id) as game:
             return game.move(request.position)
     except GameError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
 
 
 @app.get("/api/games/{game_id}/hint", response_model=AiMoveResponse)
@@ -96,12 +115,12 @@ def get_hint(
         with store.locked(game_id) as game:
             snapshot = game.clone()
     except GameError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
     try:
         with ai_slot(level):
             return build_ai_move_response(snapshot, level=level, seed=seed, auto_apply=False)
     except GameError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
 
 
 @app.post("/api/games/{game_id}/ai-move", response_model=AiMoveResponse)
@@ -123,8 +142,7 @@ def make_ai_move(
                     auto_apply=request.auto_apply,
                 )
     except GameError as exc:
-        status_code = 404 if str(exc) == "棋局不存在。" else 400
-        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
 
 
 @app.post("/api/games/{game_id}/undo", response_model=GameState)
@@ -134,7 +152,7 @@ def undo(game_id: str, request: Request, response: Response) -> GameState:
         with store.locked(game_id) as game:
             return game.undo()
     except GameError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
 
 
 @app.post("/api/games/{game_id}/reset", response_model=GameState)
@@ -144,7 +162,7 @@ def reset(game_id: str, request: Request, response: Response) -> GameState:
         with store.locked(game_id) as game:
             return game.reset()
     except GameError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise game_http_error(exc) from exc
 
 
 if (FRONTEND_DIST / "assets").is_dir():
@@ -155,16 +173,16 @@ if (FRONTEND_DIST / "assets").is_dir():
 @app.get("/{full_path:path}", include_in_schema=False)
 def serve_frontend(full_path: str = "") -> FileResponse:
     if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="接口不存在。")
+        raise HTTPException(status_code=404, detail={"code": "api_not_found", "params": {}})
     if not FRONTEND_INDEX.is_file():
-        raise HTTPException(status_code=404, detail="前端构建不存在，请先在 frontend 目录运行 npm run build。")
+        raise HTTPException(status_code=404, detail={"code": "frontend_build_missing", "params": {}})
 
     dist_root = FRONTEND_DIST.resolve()
     requested_path = (FRONTEND_DIST / full_path).resolve()
     try:
         requested_path.relative_to(dist_root)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail="文件不存在。") from exc
+        raise HTTPException(status_code=404, detail={"code": "file_not_found", "params": {}}) from exc
 
     if requested_path.is_file():
         return FileResponse(requested_path)

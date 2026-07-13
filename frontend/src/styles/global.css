@@ -249,6 +249,8 @@ button {
   text-decoration: none;
 }
 
+.language-toggle-button { min-width: 34px; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 800; white-space: nowrap; }
+
 .nav-icon-button svg {
   width: clamp(18px, calc(0.625vw + 16px), 21px);
   height: clamp(18px, calc(0.625vw + 16px), 21px);

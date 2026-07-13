@@ -35,7 +35,7 @@ def test_game_store_evicts_old_games_for_same_owner() -> None:
     try:
         game_store.get(first.game_id)
     except Exception as exc:
-        assert str(exc) == "棋局不存在。"
+        assert getattr(exc, "code", None) == "game_not_found"
     else:
         raise AssertionError("最早的同 IP 棋局应被淘汰")
 

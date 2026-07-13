@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Piece } from "../types/game";
+import { useI18n } from "vue-i18n";
 
 const props = defineProps<{
   position: number;
@@ -20,6 +21,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   place: [position: number];
 }>();
+const { t } = useI18n();
 
 function handleClick() {
   if (!props.disabled && props.isLegal) {
@@ -42,8 +44,7 @@ function pieceText(): string {
 }
 
 function ariaLabel(): string {
-  const piecePart = props.piece ? `，${props.pieceDescription ?? props.piece.id}` : "";
-  return `位置 ${props.position}${piecePart}`;
+  return props.piece ? t("game.cellWithPiece", { position: props.position, piece: props.pieceDescription ?? props.piece.id }) : t("game.position", { position: props.position });
 }
 </script>
 
@@ -74,9 +75,9 @@ function ariaLabel(): string {
       class="cell-hints"
       aria-hidden="true"
     >
-      <span v-if="showLegalHighlight" class="cell-hint hint-legal">可下</span>
-      <span v-if="isCurrentWinningMove" class="cell-hint hint-win">胜点</span>
-      <span v-if="isOpponentRealThreat" class="cell-hint hint-threat">威胁</span>
+      <span v-if="showLegalHighlight" class="cell-hint hint-legal">{{ t('game.legal') }}</span>
+      <span v-if="isCurrentWinningMove" class="cell-hint hint-win">{{ t('game.winning') }}</span>
+      <span v-if="isOpponentRealThreat" class="cell-hint hint-threat">{{ t('game.threat') }}</span>
     </span>
   </button>
 </template>
