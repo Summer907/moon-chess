@@ -3,13 +3,15 @@
 FastAPI + Pydantic 实现月亮棋规则引擎和 API（含 AI 对手），并 serve `frontend/dist` 静态文件。
 
 ```bash
-cd ../frontend
+cd ..
+uv sync
+
+cd frontend
 npm install
 npm run build
 
-cd ../backend
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8000
+cd ..
+uv run uvicorn --app-dir backend app.main:app --reload --port 8000
 ```
 
 启动后访问 `http://localhost:8000` 即可打开前端页面。
@@ -17,7 +19,7 @@ python -m uvicorn app.main:app --reload --port 8000
 测试：
 
 ```bash
-python -m pytest -q
+uv run pytest -q
 ```
 
 AI 模块位于 `app/ai/`，支持三种难度（easy / medium / hard），通过以下接口使用：

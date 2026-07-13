@@ -5,10 +5,8 @@ services:
     plan: free
     buildCommand: |
       cd frontend && npm install && npm run build &&
-      cd ../backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+      cd .. && uv sync --locked --no-dev
+    startCommand: uv run --no-sync uvicorn --app-dir backend app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.12"
       - key: NODE_VERSION
         value: "20"
