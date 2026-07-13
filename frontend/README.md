@@ -28,3 +28,16 @@ npm run build
 ```
 
 路由定义在 `src/router.ts`，组件位于 `src/components/`，页面级视图位于 `src/views/`。
+
+## 国际化
+
+国际化配置位于 `src/i18n/`：
+
+- `index.ts` 创建 `vue-i18n` Composition API 实例（`legacy: false`），回退语言为 `zh-CN`。
+- `locales/zh-CN.ts` 与 `locales/en-US.ts` 按业务域维护消息；英语语言包使用 `satisfies typeof zhCN` 保证键一致。
+- `locale.ts` 负责选择、持久化与切换语言，并同步 `document.documentElement.lang`。
+- `errorMap.ts` 将 API 错误码映射为本地化消息。
+
+语言选择优先读取 `localStorage` 的 `moon-chess-locale-v1`，其次使用浏览器语言；以 `zh` 开头选择 `zh-CN`，其他语言选择 `en-US`，无法读取时回退到 `zh-CN`。不要在组件中拼接用户可见字符串；使用 `t("domain.key", params)` 进行插值。
+
+路由 `meta.titleKey` 定义标题翻译键。路由切换和语言切换都会立即更新 `document.title`；favicon 仍由 `router.ts` 按路由维护。

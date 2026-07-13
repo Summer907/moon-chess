@@ -30,6 +30,18 @@ AI 对手支持 **easy / medium / hard** 三种难度，可获取落子提示或
 
 界面针对桌面端和移动端自适应：窄屏下状态、分析和开局配置会收纳为可展开面板。银月茶会的执子方与 AI 难度、月轨推演的执子方会在当前浏览器会话中分别保留；页面标题和图标也会随模式切换。
 
+## 国际化
+
+界面支持简体中文（`zh-CN`）和英语（`en-US`），可通过右上角语言按钮即时切换，无需刷新页面。中文界面显示 `EN`，英文界面显示 `中`。
+
+初始语言按以下顺序确定：
+
+1. `localStorage` 中合法的 `moon-chess-locale-v1` 值；
+2. 浏览器首选语言：以 `zh` 开头使用 `zh-CN`，其他语言使用 `en-US`；
+3. 无法识别时回退到 `zh-CN`。
+
+切换语言会同步更新当前界面、棋谱、分析、弹窗、ARIA 文本、浏览器标题、`<html lang>` 与本地存储偏好。
+
 ## 目录结构
 
 ```text
@@ -44,6 +56,7 @@ frontend/
   src/
     api/           # 后端 API 客户端
     components/    # Vue 单文件组件与响应式折叠面板
+    i18n/          # vue-i18n 初始化、语言选择、语言包与错误映射
     router.ts      # 路由、页面标题与图标定义
     styles/        # 全局样式
     types/         # TypeScript 类型
@@ -91,6 +104,21 @@ http://localhost:8000
 
 默认不信任转发请求头；若确认请求只会经过受信反向代理，可用 `TRUSTED_PROXY_IPS` 设置逗号分隔的代理 IP 地址。横向扩容前需将棋局、限流计数和锁迁移到 Redis。
 
+## API 文本边界
+
+API 返回规则事实和稳定错误码，前端负责生成面向用户的中英文文案。失败响应使用以下结构：
+
+```json
+{
+  "detail": {
+    "code": "invalid_move",
+    "params": { "position": 4 }
+  }
+}
+```
+
+常见 `code` 包括 `game_not_found`、`game_finished`、`invalid_move`、`no_legal_moves`、`rate_limited`、`ai_busy` 和 `validation_error`。棋谱不再返回 `note`，局面分析不再返回 `explanation`；AI 响应使用 `reason_codes`、`confidence` 枚举和结构化参数，而不是自然语言句子。
+
 运行测试：
 
 ```bash
@@ -127,7 +155,7 @@ npm run build
 
 ## 规则边界
 
-- 后端负责所有规则判断、合法落子、消子、胜负、平局、AI 走棋和分析说明。
+- 后端负责所有规则判断、合法落子、消子、胜负、平局、AI 走棋和结构化分析数据。
 - 前端只展示后端返回的 `GameState`，不自行推导 `pending_removal`、`upcoming_removal`、`legal_moves`、`winner`、`winning_line`、`current_winning_moves` 或 `opponent_real_threats`。
 - 第 14 手，也就是后手第 7 手结束后，如果仍未分出胜负，则判平局；胜利判断优先于第 14 手平局。
 - `POST /api/games` 的 `max_moves` 保留为兼容字段，但当前规则固定为 14。
