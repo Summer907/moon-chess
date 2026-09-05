@@ -42,6 +42,7 @@ class ApiErrorDetail(BaseModel):
 
 
 class GameState(BaseModel):
+    revision: int = Field(default=0, ge=0)
     game_id: str
     current_player: Player
     move_number: int = Field(ge=0)
@@ -62,5 +63,13 @@ class CreateGameRequest(BaseModel):
     max_moves: int = Field(default=14, ge=14, le=14)
 
 
-class MoveRequest(BaseModel):
+class RevisionRequest(BaseModel):
+    expected_revision: int | None = Field(default=None, ge=0)
+
+
+class UndoRequest(RevisionRequest):
+    steps: int = Field(default=1, ge=1, le=2)
+
+
+class MoveRequest(RevisionRequest):
     position: int = Field(ge=1, le=9)

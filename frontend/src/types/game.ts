@@ -33,6 +33,7 @@ export interface Analysis {
 export interface AiReason { code: string; params: Record<string, unknown>; }
 
 export interface GameState {
+  revision: number;
   game_id: string;
   current_player: Player;
   move_number: number;
@@ -54,6 +55,7 @@ export interface CreateGameRequest {
 }
 
 export interface AiMoveRequest {
+  expected_revision?: number;
   level?: AiLevel;
   seed?: number | null;
   auto_apply?: boolean;

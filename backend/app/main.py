@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .ai import AiLevel, AiMoveRequest, AiMoveResponse, build_ai_move_response
 from .game import GameError, GameStore
-from .models import CreateGameRequest, GameState, MoveRequest
+from .models import CreateGameRequest, GameState, MoveRequest, RevisionRequest, UndoRequest
 from .protection import ai_slot, client_ip, enforce_rate_limit, settings
 
 
@@ -40,6 +40,7 @@ store = GameStore(
 
 
 ERROR_STATUS = {
+    "state_conflict": 409,
     "game_not_found": 404, "game_finished": 409, "invalid_move": 422,
     "no_legal_moves": 409, "ai_illegal_move": 500, "game_capacity_reached": 503,
 }
@@ -96,6 +97,7 @@ def make_move(game_id: str, request: MoveRequest, http_request: Request, respons
     enforce_rate_limit(http_request, response, "general", settings.general_per_minute, 60)
     try:
         with store.locked(game_id) as game:
+            game.check_revision(request.expected_revision)
             return game.move(request.position)
     except GameError as exc:
         raise game_http_error(exc) from exc
@@ -134,32 +136,41 @@ def make_ai_move(
     enforce_rate_limit(http_request, response, f"ai-{request.level}", limit, 60)
     try:
         with store.locked(game_id) as game:
-            with ai_slot(request.level):
-                return build_ai_move_response(
-                    game,
-                    level=request.level,
-                    seed=request.seed,
-                    auto_apply=request.auto_apply,
-                )
+            game.check_revision(request.expected_revision)
+            snapshot = game.clone()
+        with ai_slot(request.level):
+            result = build_ai_move_response(
+                snapshot, level=request.level, seed=request.seed, auto_apply=False,
+            )
+        if not request.auto_apply:
+            return result
+        with store.locked(game_id) as game:
+            game.check_revision(snapshot.revision)
+            result.state = game.move(result.move)
+            result.applied = True
+            return result
     except GameError as exc:
         raise game_http_error(exc) from exc
 
 
 @app.post("/api/games/{game_id}/undo", response_model=GameState)
-def undo(game_id: str, request: Request, response: Response) -> GameState:
+def undo(game_id: str, request: Request, response: Response, payload: UndoRequest | None = None) -> GameState:
     enforce_rate_limit(request, response, "general", settings.general_per_minute, 60)
     try:
         with store.locked(game_id) as game:
-            return game.undo()
+            body = payload or UndoRequest()
+            game.check_revision(body.expected_revision)
+            return game.undo(body.steps)
     except GameError as exc:
         raise game_http_error(exc) from exc
 
 
 @app.post("/api/games/{game_id}/reset", response_model=GameState)
-def reset(game_id: str, request: Request, response: Response) -> GameState:
+def reset(game_id: str, request: Request, response: Response, payload: RevisionRequest | None = None) -> GameState:
     enforce_rate_limit(request, response, "general", settings.general_per_minute, 60)
     try:
         with store.locked(game_id) as game:
+            game.check_revision((payload or RevisionRequest()).expected_revision)
             return game.reset()
     except GameError as exc:
         raise game_http_error(exc) from exc

@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ..models import GameState
+from ..models import GameState, RevisionRequest
 
 
 AiLevel = Literal["easy", "medium", "hard"]
@@ -17,7 +17,7 @@ class AiReason(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
-class AiMoveRequest(BaseModel):
+class AiMoveRequest(RevisionRequest):
     level: AiLevel = "medium"
     seed: int | None = None
     auto_apply: bool = True

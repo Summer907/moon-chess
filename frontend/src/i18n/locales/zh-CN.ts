@@ -1,4 +1,5 @@
 export const zhCN = {
+  recovery: { create: "开始新对局 / 重试创建", sync: "重新同步", ai: "继续 AI 回合", syncing: "正在同步棋局…", countdown: "{count} 秒后可重试", conflict: "棋局已发生变化，请同步最新局面。" },
   common: { none: "无", hidden: "已隐藏", move: "第 {count} 手", afterMove: "第 {count} 手后", loading: "正在连接后端…", failed: "操作失败。", backHome: "← 返回银月之庭", switchToEnglish: "切换到英语", switchToChinese: "切换到中文" },
   nav: { navigation: "页面导航", guide: "查看规则说明", github: "查看 GitHub 仓库", bilibili: "访问 Bilibili 主页", light: "切换到浅色模式", dark: "切换到深色模式" },
   meta: { moonHall: "月亮棋｜银月之庭", teaParty: "银月茶会｜月亮棋模拟器", lunarOrbit: "月轨推演｜月亮棋模拟器" },

@@ -63,6 +63,7 @@ class MoonChessGame:
         max_moves: int = DRAW_AFTER_MOVES,
     ) -> None:
         self.game_id = game_id or str(uuid4())
+        self.revision = 0
         self.config = GameConfig(first_player=first_player, max_moves=max_moves)
         self.current_player: Player = first_player
         self.move_number = 0
@@ -77,6 +78,7 @@ class MoonChessGame:
         upcoming = self.upcoming_removal() if self.status == "playing" else None
         legal_moves = self.legal_moves() if self.status == "playing" else []
         return GameState(
+            revision=self.revision,
             game_id=self.game_id,
             current_player=self.current_player,
             move_number=self.move_number,
@@ -99,6 +101,7 @@ class MoonChessGame:
             max_moves=self.config.max_moves,
         )
         cloned.current_player = self.current_player
+        cloned.revision = self.revision
         cloned.move_number = self.move_number
         cloned.pieces = [piece.model_copy() for piece in self.pieces] if include_history else list(self.pieces)
         cloned.status = self.status
@@ -146,6 +149,7 @@ class MoonChessGame:
             removal_phase=removal_phase,
         )
         self.history.append(event)
+        self.revision += 1
 
         if winner:
             self.status = "won"
@@ -195,16 +199,22 @@ class MoonChessGame:
         if removed_piece:
             self.pieces = [piece for piece in self.pieces if piece.id != removed_piece.id]
 
-    def undo(self) -> GameState:
+    def check_revision(self, expected: int | None) -> None:
+        if expected is not None and expected != self.revision:
+            raise GameError("state_conflict", revision=self.revision)
+
+    def undo(self, steps: int = 1) -> GameState:
         if not self.history:
             return self.state()
-        events = self.history[:-1]
+        events = self.history[:-steps]
+        self.revision += 1
         self._reset_runtime_state()
         for event in events:
             self._replay_event(event)
         return self.state()
 
     def reset(self) -> GameState:
+        self.revision += 1
         self._reset_runtime_state()
         return self.state()
 

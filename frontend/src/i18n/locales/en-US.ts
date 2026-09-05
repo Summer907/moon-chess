@@ -2,6 +2,7 @@ import { zhCN } from "./zh-CN";
 
 export const enUS = {
   ...zhCN,
+  recovery: { create: "New game / Retry", sync: "Synchronize", ai: "Continue AI turn", syncing: "Synchronizing…", countdown: "Retry in {count}s", conflict: "The game changed. Synchronize the latest position." },
   common: { ...zhCN.common, none: "None", hidden: "Hidden", move: "Move {count}", afterMove: "After move {count}", loading: "Connecting to the server…", failed: "Action failed.", backHome: "← Back to Silvermoon Hall", switchToEnglish: "Switch to English", switchToChinese: "Switch to Chinese" },
   nav: { navigation: "Page navigation", guide: "Open game guide", github: "View GitHub repository", bilibili: "Visit Bilibili profile", light: "Switch to light theme", dark: "Switch to dark theme" },
   meta: { moonHall: "Moon Chess | Silvermoon Hall", teaParty: "Silvermoon Tea Party | Moon Chess", lunarOrbit: "Lunar Orbit | Moon Chess" },
