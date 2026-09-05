@@ -78,7 +78,31 @@ watch(
             <path d="M8 11h6" />
           </svg>
         </button>
-        <a
+        <button
+          type="button"
+          class="nav-icon-button theme-toggle-button"
+          :aria-pressed="theme === 'light'"
+          :aria-label="theme === 'dark' ? t('nav.light') : t('nav.dark')"
+          :title="theme === 'dark' ? t('nav.light') : t('nav.dark')"
+          @click="toggleTheme"
+        >
+          <svg v-if="theme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M18.36 5.64l-1.42 1.42M7.06 16.94l-1.42 1.42" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" />
+          </svg>
+        </button>
+        <button type="button" class="nav-icon-button language-toggle-button" :title="locale === 'zh-CN' ? t('common.switchToEnglish') : t('common.switchToChinese')" :aria-label="locale === 'zh-CN' ? t('common.switchToEnglish') : t('common.switchToChinese')" @click="toggleLocale">
+          {{ locale === "zh-CN" ? "EN" : "中" }}
+        </button>
+      </div>
+    </nav>
+
+    <RouterView />
+    <footer class="app-footer">
+      <div class="footer-links">        <a
           class="nav-icon-button"
           href="https://github.com/Summer907/moon-chess"
           target="_blank"
@@ -104,30 +128,7 @@ watch(
             <path d="M9 11.5v3M15 11.5v3" />
           </svg>
         </a>
-        <button
-          type="button"
-          class="nav-icon-button theme-toggle-button"
-          :aria-pressed="theme === 'light'"
-          :aria-label="theme === 'dark' ? t('nav.light') : t('nav.dark')"
-          :title="theme === 'dark' ? t('nav.light') : t('nav.dark')"
-          @click="toggleTheme"
-        >
-          <svg v-if="theme === 'dark'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.64 5.64l1.42 1.42M16.94 16.94l1.42 1.42M18.36 5.64l-1.42 1.42M7.06 16.94l-1.42 1.42" />
-          </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" />
-          </svg>
-        </button>
-        <button type="button" class="nav-icon-button language-toggle-button" :title="locale === 'zh-CN' ? t('common.switchToEnglish') : t('common.switchToChinese')" :aria-label="locale === 'zh-CN' ? t('common.switchToEnglish') : t('common.switchToChinese')" @click="toggleLocale">
-          {{ locale === "zh-CN" ? "EN" : "中" }}
-        </button>
-      </div>
-    </nav>
-
-    <RouterView />
-    <footer class="app-footer">
+</div>
       <p>© 2026 Summer907 · MIT License</p>
       <p>{{ t('footer.disclaimer') }}</p>
     </footer>

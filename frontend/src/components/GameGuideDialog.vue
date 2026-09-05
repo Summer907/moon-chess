@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { nextTick, ref } from "vue";
+import { useDialogFocus } from "../utils/useDialogFocus";
 import { useI18n } from "vue-i18n";
 
 const emit = defineEmits<{
@@ -20,22 +21,15 @@ function closeDialog() {
   emit("close");
 }
 
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Escape") {
-    closeDialog();
-  }
+useDialogFocus(dialogRef, closeDialog);
+function navigateTab(event: KeyboardEvent, index: number) {
+  const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+  if (!direction && event.key !== "Home" && event.key !== "End") return;
+  event.preventDefault();
+  const target = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + direction + tabs.length) % tabs.length;
+  activeTab.value = tabs[target]!.id;
+  void nextTick(() => dialogRef.value?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus());
 }
-
-onMounted(() => {
-  document.addEventListener("keydown", handleKeydown);
-  void nextTick(() => {
-    dialogRef.value?.focus();
-  });
-});
-
-onBeforeUnmount(() => {
-  document.removeEventListener("keydown", handleKeydown);
-});
 </script>
 
 <template>
@@ -63,12 +57,16 @@ onBeforeUnmount(() => {
 
         <div class="guide-tabs" role="tablist" :aria-label="t('guide.content')">
           <button
-            v-for="tab in tabs"
+            v-for="(tab, index) in tabs"
             :key="tab.id"
             type="button"
             class="guide-tab"
             :class="{ active: activeTab === tab.id }"
             role="tab"
+            :id="`guide-tab-${tab.id}`"
+            :aria-controls="`guide-panel-${tab.id}`"
+            :tabindex="activeTab === tab.id ? 0 : -1"
+            @keydown="navigateTab($event, index)"
             :aria-selected="activeTab === tab.id"
             @click="activeTab = tab.id"
           >
@@ -77,7 +75,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="guide-content">
-          <section v-if="activeTab === 'quick'" class="guide-panel" role="tabpanel">
+          <section v-if="activeTab === 'quick'" class="guide-panel" role="tabpanel" :id="`guide-panel-${activeTab}`" :aria-labelledby="`guide-tab-${activeTab}`">
             <div class="guide-callout">
               <strong>{{ t('guide.oneLine') }}</strong><p>{{ t('guide.oneLineText') }}</p>
             </div>
@@ -86,7 +84,7 @@ onBeforeUnmount(() => {
             </ol>
           </section>
 
-          <section v-else-if="activeTab === 'rules'" class="guide-panel" role="tabpanel">
+          <section v-else-if="activeTab === 'rules'" class="guide-panel" role="tabpanel" :id="`guide-panel-${activeTab}`" :aria-labelledby="`guide-tab-${activeTab}`">
             <dl class="guide-rule-list">
               <div>
                 <dt>{{ t('guide.board') }}</dt>
@@ -107,7 +105,7 @@ onBeforeUnmount(() => {
             </dl>
           </section>
 
-          <section v-else-if="activeTab === 'modes'" class="guide-panel" role="tabpanel">
+          <section v-else-if="activeTab === 'modes'" class="guide-panel" role="tabpanel" :id="`guide-panel-${activeTab}`" :aria-labelledby="`guide-tab-${activeTab}`">
             <div class="guide-mode-grid">
               <article>
                 <h3>{{ t('home.teaTitle') }}</h3>
@@ -120,7 +118,7 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <section v-else class="guide-panel" role="tabpanel">
+          <section v-else class="guide-panel" role="tabpanel" :id="`guide-panel-${activeTab}`" :aria-labelledby="`guide-tab-${activeTab}`">
             <ul class="guide-marker-list">
               <li><strong>{{ t('guide.number') }}</strong><span>{{ t('guide.numberText') }}</span></li>
               <li><strong>{{ t('guide.legal') }}</strong><span>{{ t('guide.legalText') }}</span></li>

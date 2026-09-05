@@ -25,6 +25,7 @@ function formatMoveEvent(event: MoveEvent, displayMap: PlayerDisplayMap): string
       <strong>{{ t('history.count', { count: history.length }) }}</strong>
     </div>
 
+    <p v-if="history.length" class="last-event" aria-live="polite">{{ formatMoveEvent(history[history.length - 1]!, displayMap) }}</p>
     <div class="history-scroll">
       <ul v-if="history.length > 0" class="history-list">
         <li v-for="event in history" :key="event.move_number">

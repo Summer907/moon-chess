@@ -67,10 +67,7 @@ const winningLineText = computed(() =>
       <div>
         <dt>{{ t('game.upcoming') }}</dt><dd>{{ showRemovalPreview ? formatPieceFull(state.upcoming_removal, displayMap, t('common.none')) : t('common.hidden') }}</dd>
       </div>
-      <div>
-        <dt>{{ t('game.legalMoves') }}</dt>
-        <dd>{{ legalMovesText }}</dd>
-      </div>
+      <details><summary>{{ t("game.legalMoves") }}</summary><p>{{ legalMovesText }}</p></details>
     </dl>
 
     <section

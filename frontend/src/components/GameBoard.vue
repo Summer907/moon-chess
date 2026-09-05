@@ -93,7 +93,7 @@ function isOpponentRealThreat(position: number): boolean {
   <section class="board-panel" :aria-label="t('game.board')">
     <div class="board-meta">
       <div>
-        <span>{{ t('common.afterMove', { count: state.move_number }) }}</span>
+        <span>{{ t('ux.progress', { count: state.move_number }) }}</span>
         <strong v-if="state.status !== 'playing'">{{ t('game.ended') }}</strong>
       </div>
       <div v-if="state.status === 'playing'" class="pending-text">
@@ -102,14 +102,7 @@ function isOpponentRealThreat(position: number): boolean {
       </div>
     </div>
 
-    <div class="board-stage">
-      <div class="board-aura" aria-hidden="true"></div>
-      <div class="board-ornaments" aria-hidden="true">
-        <span class="board-ornament board-ornament--top"></span>
-        <span class="board-ornament board-ornament--right"></span>
-        <span class="board-ornament board-ornament--bottom"></span>
-        <span class="board-ornament board-ornament--left"></span>
-      </div>
+    <div class="board-stage" :class="{ 'is-inactive': disabled }">
       <div class="board-grid" :class="{ 'has-winner': winningLine }">
         <svg v-if="winningLine" class="winning-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
           <defs>
@@ -152,6 +145,7 @@ function isOpponentRealThreat(position: number): boolean {
           :is-current-winning-move="isCurrentWinningMove(position)"
           :is-opponent-real-threat="isOpponentRealThreat(position)"
           :disabled="disabled"
+          :is-last-move="state.history[state.history.length - 1]?.position === position"
           @place="emit('place', $event)"
         />
       </div>

@@ -136,13 +136,6 @@ const undoTitleText = computed(() => props.undoTitle || t("teaParty.undoTitle"))
       </div>
     </fieldset>
 
-    <div class="button-row">
-      <button type="button" :disabled="loading" :title="newTitle" @click="$emit('newGame')">
-        {{ newLabel }}
-      </button>
-      <button type="button" :disabled="loading || !canUndo" :title="undoTitleText" @click="$emit('undo')">
-        {{ undoLabelText }}
-      </button>
-    </div>
+    <p class="settings-note">{{ t("ux.settingsNote") }}</p>
   </section>
 </template>

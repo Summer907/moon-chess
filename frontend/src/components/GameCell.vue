@@ -16,6 +16,7 @@ const props = defineProps<{
   isCurrentWinningMove: boolean;
   isOpponentRealThreat: boolean;
   disabled: boolean;
+  isLastMove?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -44,7 +45,13 @@ function pieceText(): string {
 }
 
 function ariaLabel(): string {
-  return props.piece ? t("game.cellWithPiece", { position: props.position, piece: props.pieceDescription ?? props.piece.id }) : t("game.position", { position: props.position });
+  const labels = [props.piece ? t("game.cellWithPiece", { position: props.position, piece: props.pieceDescription ?? props.piece.id }) : t("game.position", { position: props.position })];
+  if (props.showLegalHighlight) labels.push(t("game.legal"));
+  if (props.isCurrentWinningMove) labels.push(t("game.winning"));
+  if (props.isOpponentRealThreat) labels.push(t("game.threat"));
+  if (props.isPendingRemoval) labels.push(t("ux.removing"));
+  if (props.isLastMove) labels.push(t("ux.lastMove"));
+  return labels.join("; ");
 }
 </script>
 
@@ -55,6 +62,7 @@ function ariaLabel(): string {
       pieceClassName(),
       {
         'has-piece': piece,
+        'last-move': isLastMove,
         'pending-removal': isPendingRemoval,
         winning: isWinning,
         legal: isLegal,
@@ -69,15 +77,16 @@ function ariaLabel(): string {
     @click="handleClick"
   >
     <span v-if="showNumber" class="cell-number">{{ position }}</span>
+    <span v-if="isPendingRemoval" class="removal-badge" aria-hidden="true">{{ t("ux.removing") }}</span>
     <span v-if="piece" class="piece-label">{{ pieceText() }}</span>
     <span
       v-if="showLegalHighlight || isCurrentWinningMove || isOpponentRealThreat"
       class="cell-hints"
       aria-hidden="true"
     >
-      <span v-if="showLegalHighlight" class="cell-hint hint-legal">{{ t('game.legal') }}</span>
-      <span v-if="isCurrentWinningMove" class="cell-hint hint-win">{{ t('game.winning') }}</span>
-      <span v-if="isOpponentRealThreat" class="cell-hint hint-threat">{{ t('game.threat') }}</span>
+      <span v-if="showLegalHighlight" class="cell-hint hint-legal">•</span>
+      <span v-if="isCurrentWinningMove" class="cell-hint hint-win">◆ {{ t('game.winning') }}</span>
+      <span v-if="isOpponentRealThreat" class="cell-hint hint-threat">▲ {{ t('game.threat') }}</span>
     </span>
   </button>
 </template>

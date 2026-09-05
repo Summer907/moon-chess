@@ -17,11 +17,11 @@ export function useGameController(mode: "teaParty" | "lunarOrbit") {
   const travelerSide = ref<TravelerSide>(saved[mode].travelerSide);
   const aiLevel = ref<AiLevel>(saved.teaParty.aiLevel);
   const displayMap = computed(() => createPlayerDisplay(travelerSide.value, t));
-  const showCellNumbers = ref(true);
-  const showLegalMoves = ref(true);
-  const showWinningMoves = ref(true);
-  const showThreatMoves = ref(true);
-  const showRemovalPreview = ref(true);
+  const showCellNumbers = ref(saved[mode].display.numbers);
+  const showLegalMoves = ref(saved[mode].display.legal);
+  const showWinningMoves = ref(saved[mode].display.wins);
+  const showThreatMoves = ref(saved[mode].display.threats);
+  const showRemovalPreview = ref(saved[mode].display.removal);
   const aiTurn = computed(() => mode === "teaParty" && gameState.value?.status === "playing" &&
     isRoleTurn(gameState.value.current_player, displayMap.value, "columbina"));
   const aiThinking = computed(() => phase.value === "thinking" || aiTurn.value && phase.value === "submitting");
@@ -79,8 +79,23 @@ export function useGameController(mode: "teaParty" | "lunarOrbit") {
     cancelDelay();
     await run(signal => undo(state.game_id, state.revision, undoSteps.value, signal));
   }
+  const pendingSide = ref<TravelerSide | null>(null);
+  const confirmOpen = ref(false);
+  function requestRestart() {
+    if (blocked.value) return;
+    if (gameState.value?.history.length) confirmOpen.value = true;
+    else void startNewGame();
+  }
+  function confirmRestart() {
+    confirmOpen.value = false;
+    if (pendingSide.value) travelerSide.value = pendingSide.value;
+    pendingSide.value = null;
+    void startNewGame();
+  }
+  function cancelRestart() { confirmOpen.value = false; pendingSide.value = null; }
   function updateTravelerSide(value: TravelerSide) {
     if (blocked.value || value === travelerSide.value) return;
+    if (gameState.value?.history.length) { pendingSide.value = value; confirmOpen.value = true; return; }
     travelerSide.value = value;
     void startNewGame();
   }
@@ -94,16 +109,17 @@ export function useGameController(mode: "teaParty" | "lunarOrbit") {
   }
   const recoveryLabel = computed(() => !gameState.value ? t("recovery.create") :
     session.needsSync.value || !aiTurn.value ? t("recovery.sync") : t("recovery.ai"));
-  watch([travelerSide, aiLevel], () => {
+  watch([travelerSide, aiLevel, showCellNumbers, showLegalMoves, showWinningMoves, showThreatMoves, showRemovalPreview], () => {
     const prefs = loadGamePreferences();
     prefs[mode].travelerSide = travelerSide.value;
+    prefs[mode].display = { numbers: showCellNumbers.value, legal: showLegalMoves.value, wins: showWinningMoves.value, threats: showThreatMoves.value, removal: showRemovalPreview.value };
     if (mode === "teaParty") prefs.teaParty.aiLevel = aiLevel.value;
     saveGamePreferences(prefs);
   });
   onMounted(() => { void startNewGame(); });
   onBeforeUnmount(cancelDelay);
   const { elementRef: boardPanelRef, heightStyle: boardHeightStyle } = useElementHeightCssVar("--game-board-panel-height");
-  return { ...session, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves,
+  return { ...session, confirmOpen, requestRestart, confirmRestart, cancelRestart, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves,
     showThreatMoves, showRemovalPreview, loading, aiThinking, canPlace, canUndo, errorMessage, statusPillText,
     startNewGame, placeAt, undoMove, updateTravelerSide, updateAiLevel, recover, recoveryLabel, boardPanelRef, boardHeightStyle,
     pieceShortName: (piece: Piece) => formatPieceShort(piece),
