@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections import OrderedDict
 from threading import Lock
+import time
+from ..telemetry import event
 
 from ..game import WINNING_LINES, MoonChessGame, other_player, sorted_player_pieces
 from ..protection import _positive_int
@@ -14,7 +16,6 @@ from .models import AiReason
 
 CompactState = tuple[int, int, Player, tuple[int, ...], tuple[int, ...]]
 MemoSignature = CompactState
-CycleSignature = tuple[Player, tuple[int, ...], tuple[int, ...]]
 _MEMO_CAPACITY = _positive_int("AI_MEMO_CAPACITY", 100_000)
 _GLOBAL_MEMO: OrderedDict[MemoSignature, "SearchResult"] = OrderedDict()
 _MEMO_LOCK = Lock()
@@ -30,11 +31,14 @@ class SearchResult:
 class HardSolver:
     def __init__(self) -> None:
         self._memo = _GLOBAL_MEMO
+        self.nodes = 0
+        self.hits = 0
 
     def evaluate(self, game: MoonChessGame) -> tuple[SearchResult, list[AiMoveEvaluation]]:
+        started = time.perf_counter()
+        self.nodes = self.hits = 0
         state = self._state_from_game(game)
-        visiting = frozenset({self._cycle_signature(state)})
-        candidates = [self._evaluate_move(state, move, visiting) for move in self._legal_moves(state)]
+        candidates = [self._evaluate_move(state, move) for move in self._legal_moves(state)]
         if not candidates:
             return SearchResult(outcome="draw", plies=0, move=None), []
 
@@ -50,21 +54,20 @@ class HardSolver:
             for result in candidates
             if result.move is not None
         ]
+        event("ai_search", seconds=round(time.perf_counter() - started, 6), nodes=self.nodes, hits=self.hits, move_number=game.move_number)
         return best, sorted(evaluations, key=lambda item: item.move)
 
-    def _solve(self, state: CompactState, visiting: frozenset[CycleSignature]) -> SearchResult:
-        cycle_key = self._cycle_signature(state)
-        if cycle_key in visiting:
-            return SearchResult(outcome="draw", plies=0, move=None)
-
+    def _solve(self, state: CompactState) -> SearchResult:
+        self.nodes += 1
         with _MEMO_LOCK:
             cached = self._memo.get(state)
             if cached is not None:
+                self.hits += 1
                 self._memo.move_to_end(state)
                 return cached
 
         candidates = [
-            self._evaluate_move(state, move, visiting | {cycle_key})
+            self._evaluate_move(state, move)
             for move in self._legal_moves(state)
         ]
         if not candidates:
@@ -83,14 +86,13 @@ class HardSolver:
         self,
         state: CompactState,
         move: int,
-        visiting: frozenset[CycleSignature],
     ) -> SearchResult:
         terminal, next_state = self._apply_move(state, move)
         if terminal is not None:
             return SearchResult(outcome=terminal, plies=1, move=move)
 
         assert next_state is not None
-        child = self._solve(next_state, visiting)
+        child = self._solve(next_state)
         return SearchResult(
             outcome=self._invert(child.outcome),
             plies=child.plies + 1,
@@ -123,10 +125,6 @@ class HardSolver:
     def _state_from_game(self, game: MoonChessGame) -> CompactState:
         x_queue, o_queue = self._piece_queues(game)
         return game.config.max_moves, game.move_number, game.current_player, x_queue, o_queue
-
-    def _cycle_signature(self, state: CompactState) -> CycleSignature:
-        _, _, player, x_queue, o_queue = state
-        return player, x_queue, o_queue
 
     def _piece_queues(self, game: MoonChessGame) -> tuple[tuple[int, ...], tuple[int, ...]]:
         x_queue = tuple(piece.position for piece in sorted_player_pieces(game.pieces, "X"))

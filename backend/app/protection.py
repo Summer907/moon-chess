@@ -10,6 +10,7 @@ import time
 from typing import Iterator
 
 from fastapi import HTTPException, Request, Response
+from .telemetry import event
 
 
 def _positive_int(name: str, default: int) -> int:
@@ -116,6 +117,7 @@ def enforce_rate_limit(
     response.headers["RateLimit-Remaining"] = str(result.remaining)
     response.headers["RateLimit-Reset"] = str(result.retry_after)
     if not result.allowed:
+        event("rate_limited", category=category)
         raise HTTPException(
             status_code=429,
             detail={"code": "rate_limited", "params": {"retry_after": result.retry_after}},

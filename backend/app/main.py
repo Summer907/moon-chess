@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
+from .telemetry import event
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -40,13 +42,14 @@ store = GameStore(
 
 
 ERROR_STATUS = {
-    "state_conflict": 409,
+    "state_conflict": 409, "owner_capacity_reached": 429,
     "game_not_found": 404, "game_finished": 409, "invalid_move": 422,
     "no_legal_moves": 409, "ai_illegal_move": 500, "game_capacity_reached": 503,
 }
 
 
 def game_http_error(exc: GameError) -> HTTPException:
+    event("game_error", code=exc.code)
     return HTTPException(status_code=ERROR_STATUS.get(exc.code, 400), detail={"code": exc.code, "params": exc.params})
 
 
@@ -55,6 +58,16 @@ async def validation_error_handler(_: Request, exc: RequestValidationError):
     fields = [".".join(str(part) for part in item["loc"]) for item in exc.errors()]
     return Response(content=__import__("json").dumps({"detail": {"code": "validation_error", "params": {"fields": fields}}}), status_code=422, media_type="application/json")
 
+
+
+@app.middleware("http")
+async def request_metrics(request: Request, call_next):
+    started = time.perf_counter()
+    response = await call_next(request)
+    route = request.scope.get("route")
+    event("request", method=request.method, route=getattr(route, "path", "unmatched"),
+          status=response.status_code, milliseconds=round((time.perf_counter() - started) * 1000, 2))
+    return response
 
 @app.get("/api/health")
 def health() -> dict[str, str]:
@@ -135,20 +148,21 @@ def make_ai_move(
     limit = settings.hard_ai_per_minute if request.level == "hard" else settings.ai_per_minute
     enforce_rate_limit(http_request, response, f"ai-{request.level}", limit, 60)
     try:
-        with store.locked(game_id) as game:
-            game.check_revision(request.expected_revision)
-            snapshot = game.clone()
-        with ai_slot(request.level):
-            result = build_ai_move_response(
-                snapshot, level=request.level, seed=request.seed, auto_apply=False,
-            )
-        if not request.auto_apply:
-            return result
-        with store.locked(game_id) as game:
-            game.check_revision(snapshot.revision)
-            result.state = game.move(result.move)
-            result.applied = True
-            return result
+        with store.pinned(game_id):
+            with store.locked(game_id) as game:
+                game.check_revision(request.expected_revision)
+                snapshot = game.clone()
+            with ai_slot(request.level):
+                result = build_ai_move_response(
+                    snapshot, level=request.level, seed=request.seed, auto_apply=False,
+                )
+            if not request.auto_apply:
+                return result
+            with store.locked(game_id) as game:
+                game.check_revision(snapshot.revision)
+                result.state = game.move(result.move)
+                result.applied = True
+                return result
     except GameError as exc:
         raise game_http_error(exc) from exc
 

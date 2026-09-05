@@ -226,7 +226,7 @@ class MoonChessGame:
 
     def pending_removal(self, player: Player | None = None, pieces: list[Piece] | None = None) -> Piece | None:
         target_player = player or self.current_player
-        target_pieces = sorted_player_pieces(pieces or self.pieces, target_player)
+        target_pieces = sorted_player_pieces(self.pieces if pieces is None else pieces, target_player)
         if len(target_pieces) >= 3:
             return target_pieces[0]
         return None
@@ -238,7 +238,7 @@ class MoonChessGame:
         if self.status != "playing" and pieces is None:
             return []
         target_player = player or self.current_player
-        source_pieces = pieces or self.pieces
+        source_pieces = self.pieces if pieces is None else pieces
         pending = self.pending_removal(target_player, source_pieces)
         pieces_after_removal = self._pieces_without(pending, source_pieces)
         occupied = {piece.position for piece in pieces_after_removal}
@@ -289,7 +289,7 @@ class MoonChessGame:
         )
 
     def _pieces_without(self, removed_piece: Piece | None, pieces: list[Piece] | None = None) -> list[Piece]:
-        source_pieces = pieces or self.pieces
+        source_pieces = self.pieces if pieces is None else pieces
         if not removed_piece:
             return [piece.model_copy() for piece in source_pieces]
         return [piece.model_copy() for piece in source_pieces if piece.id != removed_piece.id]
@@ -349,6 +349,7 @@ class GameStore:
         self._max_games_per_ip = max_games_per_ip
         self._max_games = max_games
         self._lock = Lock()
+        self._last_pruned = time.monotonic()
 
     def create(
         self,
@@ -371,13 +372,22 @@ class GameStore:
             return self._entry_locked(game_id).game
 
     @contextmanager
-    def locked(self, game_id: str) -> Iterator[MoonChessGame]:
+    def pinned(self, game_id: str) -> Iterator[StoredGame]:
         with self._lock:
             entry = self._entry_locked(game_id)
-        with entry.lock:
+            entry.active += 1
+        try:
+            yield entry
+        finally:
             with self._lock:
+                entry.active -= 1
                 entry.last_accessed = time.monotonic()
-            yield entry.game
+
+    @contextmanager
+    def locked(self, game_id: str) -> Iterator[MoonChessGame]:
+        with self.pinned(game_id) as entry:
+            with entry.lock:
+                yield entry.game
 
     def clear(self) -> None:
         with self._lock:
@@ -389,34 +399,48 @@ class GameStore:
             entry = self._games[game_id]
         except KeyError as exc:
             raise GameError("game_not_found") from exc
+        if entry.active == 0 and self._expired(entry, time.monotonic()):
+            del self._games[game_id]
+            raise GameError("game_not_found")
         entry.last_accessed = time.monotonic()
         return entry
 
+    def _expired(self, entry: StoredGame, now: float) -> bool:
+        ttl = self._playing_ttl_seconds if entry.game.status == "playing" else self._finished_ttl_seconds
+        return now - entry.last_accessed >= ttl
+
     def _prune_locked(self) -> None:
         now = time.monotonic()
-        expired_ids = [
-            game_id
-            for game_id, entry in self._games.items()
-            if now - entry.last_accessed > (
-                self._playing_ttl_seconds if entry.game.status == "playing" else self._finished_ttl_seconds
-            )
-        ]
-        for game_id in expired_ids:
-            del self._games[game_id]
+        if now - self._last_pruned < 60:
+            return
+        self._last_pruned = now
+        for game_id in list(self._games):
+            entry = self._games[game_id]
+            if entry.active == 0 and self._expired(entry, now):
+                del self._games[game_id]
 
-    def _evict_owner_games_locked(self, owner_ip: str) -> None:
-        owner_entries = sorted(
-            ((game_id, entry) for game_id, entry in self._games.items() if entry.owner_ip == owner_ip),
+    def _evict(self, entries: list[tuple[str, StoredGame]], limit: int, code: str) -> None:
+        now = time.monotonic()
+        candidates = sorted(
+            ((key, entry) for key, entry in entries
+             if entry.active == 0 and (entry.game.status != "playing" or self._expired(entry, now))),
             key=lambda item: item[1].last_accessed,
         )
-        while len(owner_entries) >= self._max_games_per_ip:
-            game_id, _ = owner_entries.pop(0)
-            del self._games[game_id]
+        remaining = len(entries)
+        for key, _ in candidates:
+            if remaining < limit:
+                break
+            del self._games[key]
+            remaining -= 1
+        if remaining >= limit:
+            raise GameError(code)
+
+    def _evict_owner_games_locked(self, owner_ip: str) -> None:
+        self._evict([(key, entry) for key, entry in self._games.items() if entry.owner_ip == owner_ip],
+                    self._max_games_per_ip, "owner_capacity_reached")
 
     def _evict_to_capacity_locked(self) -> None:
-        while len(self._games) >= self._max_games:
-            oldest_game_id = min(self._games, key=lambda game_id: self._games[game_id].last_accessed)
-            del self._games[oldest_game_id]
+        self._evict(list(self._games.items()), self._max_games, "game_capacity_reached")
 
 
 @dataclass
@@ -425,3 +449,4 @@ class StoredGame:
     owner_ip: str
     last_accessed: float = field(default_factory=time.monotonic)
     lock: Lock = field(default_factory=Lock)
+    active: int = 0

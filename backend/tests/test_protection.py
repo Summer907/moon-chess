@@ -28,6 +28,8 @@ def test_game_store_evicts_old_games_for_same_owner() -> None:
     game_store = GameStore(max_games_per_ip=2, max_games=10)
 
     first = game_store.create(owner_ip="203.0.113.1")
+    for position in [1, 4, 2, 5, 3]:
+        game_store.get(first.game_id).move(position)
     game_store.create(owner_ip="203.0.113.1")
     third = game_store.create(owner_ip="203.0.113.1")
 
