@@ -113,7 +113,14 @@ function isOpponentRealThreat(position: number): boolean {
       <div class="board-grid" :class="{ 'has-winner': winningLine }">
         <svg v-if="winningLine" class="winning-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
           <defs>
-            <filter id="winning-line-glow" x="-40%" y="-40%" width="180%" height="180%">
+            <filter
+              id="winning-line-glow"
+              filterUnits="userSpaceOnUse"
+              x="-50"
+              y="-50"
+              width="400"
+              height="400"
+            >
               <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
