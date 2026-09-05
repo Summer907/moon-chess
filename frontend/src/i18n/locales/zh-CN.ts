@@ -1,7 +1,7 @@
 export const zhCN = {
-  recovery: { create: "开始新对局 / 重试创建", sync: "重新同步", ai: "继续 AI 回合", syncing: "正在同步棋局…", countdown: "{count} 秒后可重试", conflict: "棋局已发生变化，请同步最新局面。" },
-  ux: {"confirmTitle": "开始新的棋局？", "confirmBody": "当前棋局将被替换。确定要重新开始吗？", "cancel": "保留棋局", "confirm": "开始新局", "restart": "重新开始", "undo": "悔棋", "again": "再来一局", "viewHistory": "查看棋谱", "wait": "请等待当前操作完成", "choose": "选择一个空格落子", "progress": "已落 {count} / 14 手", "removing": "即将离场", "lastMove": "上一手", "settingsNote": "更改先后手会开始新局；难度在下一次 AI 请求时生效。"},
-  common: { none: "无", hidden: "已隐藏", move: "第 {count} 手", afterMove: "第 {count} 手后", loading: "正在连接后端…", failed: "操作失败。", backHome: "← 返回银月之庭", switchToEnglish: "切换到英语", switchToChinese: "切换到中文" },
+  recovery: { ownerCapacity: "当前网络的进行中棋局已达上限，请返回已有棋局或稍后重试。", create: "开始新对局 / 重试创建", sync: "重新同步", ai: "继续 AI 回合", syncing: "正在同步棋局…", countdown: "{count} 秒后可重试", conflict: "棋局已发生变化，请同步最新局面。" },
+  ux: { "sideNote": "更改先后手会开始新的推演。","confirmTitle": "开始新的棋局？", "confirmBody": "当前棋局将被替换。确定要重新开始吗？", "cancel": "保留棋局", "confirm": "开始新局", "restart": "重新开始", "undo": "悔棋", "again": "再来一局", "viewHistory": "查看棋谱", "wait": "请等待当前操作完成", "choose": "选择一个空格落子", "progress": "已落 {count} / 14 手", "removing": "即将离场", "lastMove": "上一手", "settingsNote": "更改先后手会开始新局；难度在下一次 AI 请求时生效。"},
+  common: { none: "无", hidden: "已隐藏", move: "第 {count} 手", afterMove: "第 {count} 手后", loading: "正在准备棋局…", failed: "操作失败。", backHome: "← 返回银月之庭", switchToEnglish: "切换到英语", switchToChinese: "切换到中文" },
   nav: { navigation: "页面导航", guide: "查看规则说明", github: "查看 GitHub 仓库", bilibili: "访问 Bilibili 主页", light: "切换到浅色模式", dark: "切换到深色模式" },
   meta: { moonHall: "月亮棋｜银月之庭", teaParty: "银月茶会｜月亮棋模拟器", lunarOrbit: "月轨推演｜月亮棋模拟器" },
   home: { title: "月下对弈，落子成光", subtitle: "眼前月是天上月，月上人是心上人。", modes: "选择游戏模式", teaAria: "进入银月茶会 AI 对战", orbitAria: "进入月轨推演", ai: "AI 对战", free: "自由推演", teaTitle: "银月茶会", orbitTitle: "月轨推演", teaText: "与哥伦比娅隔月对弈。选择席位与难度，在月影更替间取得三连。", orbitText: "自由落子，观察旧子消失顺序、直接胜点与对手真实威胁。", levels: "三档难度", autoReply: "自动应手", history: "完整棋谱", backend: "局面分析", threats: "真实威胁", undo: "逐步回退", enterTea: "入席对弈", enterOrbit: "推演月轨", teaFeatures: "银月茶会特性", orbitFeatures: "月轨推演特性" },

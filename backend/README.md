@@ -60,3 +60,11 @@ AI 模块位于 `app/ai/`，支持三种难度（easy / medium / hard），通�
 `GameError` 使用 `code` 和 `params`，不能通过比较旧中文错误文案判断错误类型。主要错误码包括：`game_not_found`（404）、`game_finished`（409）、`invalid_move`（422）、`no_legal_moves`（409）、`game_capacity_reached`（503）、`rate_limited`（429）、`ai_busy`（503）和 `validation_error`（422）。
 
 响应模型已移除展示文案字段：`MoveEvent.note`、`Analysis.explanation`、`AiMoveResponse.reason` 和 `AiMoveEvaluation.reason`。棋谱使用 `removal_phase`，AI 使用 `confidence` 枚举与 `reason_codes`（每项含 `code`、`params`）表达可本地化的决策信息。
+
+## 局面版本与生命周期
+
+所有局面返回单调递增的 revision。修改请求可带 expected_revision；不匹配时返回 state_conflict（409）。undo 支持 steps=1 或 2，并在同一锁内完成；reset 保留 game_id。AI 锁外搜索，在重新取得锁后校验快照版本。
+
+容量满时仅淘汰未使用的已结束/过期棋局；个人上限返回 owner_capacity_reached（429）。进行中且未过期的棋局不会因容量不足被淘汰。保持单进程部署；进程重启会丢失棋局。
+
+运行 `uv run python scripts/benchmark_ai.py` 获取冷/热缓存性能样本。更多细节见根目录 OPTIMIZATION_REPORT.md。

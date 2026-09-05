@@ -75,3 +75,11 @@ export function undo(gameId: string, expected_revision?: number, steps = 1, sign
     signal,
   });
 }
+
+export function resetGame(gameId: string, expected_revision: number, signal?: AbortSignal): Promise<GameState> {
+  return request<GameState>(`/api/games/${gameId}/reset`, {
+    method: "POST",
+    body: JSON.stringify({ expected_revision }),
+    signal,
+  });
+}

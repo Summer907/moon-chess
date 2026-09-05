@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+import pytest
 
 from fastapi.testclient import TestClient
 
@@ -23,7 +24,8 @@ def test_revision_survives_undo_reset_and_stale_move() -> None:
     assert client.post(path + "/undo", json={"steps": 3}).status_code == 422
 
 
-def test_old_ai_cannot_commit_after_reset(monkeypatch) -> None:
+@pytest.mark.parametrize("operation", ["reset", "undo"])
+def test_old_ai_cannot_commit_after_reset_or_undo(monkeypatch, operation) -> None:
     rate_limiter.clear()
     client = TestClient(main.app)
     state = client.post("/api/games").json()
@@ -41,7 +43,7 @@ def test_old_ai_cannot_commit_after_reset(monkeypatch) -> None:
         future = executor.submit(client.post, path + "/ai-move", json={"level": "easy"})
         assert entered.wait(5)
         try:
-            assert client.post(path + "/reset").status_code == 200
+            assert client.post(path + "/" + operation).status_code == 200
         finally:
             release.set()
         assert future.result().status_code == 409

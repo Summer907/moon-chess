@@ -160,3 +160,9 @@ npm run build
 - 第 14 手，也就是后手第 7 手结束后，如果仍未分出胜负，则判平局；胜利判断优先于第 14 手平局。
 - `POST /api/games` 的 `max_moves` 保留为兼容字段，但当前规则固定为 14。
 - `GET /api/games/{id}/hint` 返回 AI 建议但不修改棋局；`POST /api/games/{id}/ai-move` 可自动落子。
+
+## 稳定性与界面优化
+
+本轮新增局面版本校验、原子悔棋、失败恢复和克制月夜界面；接口兼容说明、性能基线及验证结果见 [优化交付记录](OPTIMIZATION_REPORT.md)。前端显示开关与开局偏好按模式独立保存。
+
+本地完整验证使用 `uv run pytest -q`，以及 frontend 目录中的 `npm test`、`npm run build`、`npm run test:e2e`。首次端到端测试前运行 `npx playwright install chromium`；测试会启动独立的 8018 端口服务。

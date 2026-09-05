@@ -1,6 +1,6 @@
 # 前端
 
-Vue 3 + TypeScript + Vite 实现月亮棋演示界面，包含两套视图：
+Vue 3 + TypeScript + Vite 实现月亮棋演示界面，包含三个页面：
 
 - **银月之庭**（路由 `/`）——选择银月茶会或月轨推演。
 - **银月茶会**（路由 `/tea-party`）——单人挑战 AI 的对弈界面，支持三档难度。
@@ -41,3 +41,7 @@ npm run build
 语言选择优先读取 `localStorage` 的 `moon-chess-locale-v1`，其次使用浏览器语言；以 `zh` 开头选择 `zh-CN`，其他语言选择 `en-US`，无法读取时回退到 `zh-CN`。不要在组件中拼接用户可见字符串；使用 `t("domain.key", params)` 进行插值。
 
 路由 `meta.titleKey` 定义标题翻译键。路由切换和语言切换都会立即更新 `document.title`；favicon 仍由 `router.ts` 按路由维护。
+
+## 自动化验证
+
+使用 Node 24 与 `npm ci` 安装锁定依赖。运行 `npm test` 验证请求恢复、偏好和组件；运行 `npm run build` 后，使用 `npx playwright install chromium` 和 `npm run test:e2e` 进行浏览器验证。端到端测试自动启动 8018 端口 API，截图输出到仓库根目录的 artifacts/ui。

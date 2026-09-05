@@ -204,10 +204,10 @@ class MoonChessGame:
             raise GameError("state_conflict", revision=self.revision)
 
     def undo(self, steps: int = 1) -> GameState:
+        self.revision += 1
         if not self.history:
             return self.state()
         events = self.history[:-steps]
-        self.revision += 1
         self._reset_runtime_state()
         for event in events:
             self._replay_event(event)

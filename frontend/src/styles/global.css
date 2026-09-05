@@ -76,7 +76,7 @@ h1, h2, p { margin-top: 0; }
 .board-panel { padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .board-meta { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .board-meta strong { color: var(--text); margin-left: 4px; }
-.board-stage { width: min(100%, max(300px, calc(100dvh - 380px)), 420px); margin: auto; }
+.board-stage { width: min(100%, max(300px, calc(100dvh - 420px)), 420px); margin: auto; }
 .board-grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .game-cell { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 1; width: 100%; min-width: 0; padding: 0; border: 1px solid var(--line); background: var(--raised); border-radius: 10px; }
 .game-cell:disabled { opacity: 1; }

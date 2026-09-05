@@ -3,10 +3,11 @@ import { createRouter, createWebHistory } from "vue-router";
 import coupleIcon from "../../assets/couple.ico";
 import columbinaIcon from "../../assets/columbina.ico";
 import sandroneIcon from "../../assets/sandrone.ico";
-import LunarOrbitView from "./views/LunarOrbitView.vue";
-import MoonHallView from "./views/MoonHallView.vue";
-import SilverMoonTeaPartyView from "./views/SilverMoonTeaPartyView.vue";
 import { syncDocumentTitle } from "./i18n/locale";
+
+const LunarOrbitView = () => import("./views/LunarOrbitView.vue");
+const MoonHallView = () => import("./views/MoonHallView.vue");
+const SilverMoonTeaPartyView = () => import("./views/SilverMoonTeaPartyView.vue");
 
 const routeIcons: Record<string, string> = {
   "moon-hall": coupleIcon,

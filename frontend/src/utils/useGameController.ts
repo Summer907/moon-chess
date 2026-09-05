@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { createGame, makeAiMove, makeMove, undo } from "../api/client";
+import { createGame, makeAiMove, makeMove, resetGame, undo } from "../api/client";
 import type { AiLevel, Piece } from "../types/game";
 import type { TravelerSide } from "../types/display";
 import { errorText } from "../i18n/errorMap";
@@ -61,11 +61,17 @@ export function useGameController(mode: "teaParty" | "lunarOrbit") {
     phase.value = "thinking";
     timer = setTimeout(() => { void runAi(); }, 600);
   }
-  async function startNewGame() {
+  async function startNewGame(newSide?: TravelerSide) {
     if (blocked.value && phase.value !== "loading") return;
     cancelDelay();
-    const state = await run(signal => createGame({ first_player: "X" }, signal), true);
-    if (state) schedule();
+    const previous = gameState.value;
+    const state = previous
+      ? await run(signal => resetGame(previous.game_id, previous.revision, signal))
+      : await run(signal => createGame({ first_player: "X" }, signal), true);
+    if (state) {
+      if (newSide) travelerSide.value = newSide;
+      schedule();
+    }
   }
   async function placeAt(position: number) {
     const state = gameState.value;
@@ -83,27 +89,29 @@ export function useGameController(mode: "teaParty" | "lunarOrbit") {
   const confirmOpen = ref(false);
   function requestRestart() {
     if (blocked.value) return;
-    if (gameState.value?.history.length) confirmOpen.value = true;
+    if (gameState.value?.history.length) { cancelDelay(); confirmOpen.value = true; }
     else void startNewGame();
   }
   function confirmRestart() {
     confirmOpen.value = false;
-    if (pendingSide.value) travelerSide.value = pendingSide.value;
+    const side = pendingSide.value;
     pendingSide.value = null;
-    void startNewGame();
+    void startNewGame(side ?? undefined);
   }
-  function cancelRestart() { confirmOpen.value = false; pendingSide.value = null; }
+  function cancelRestart() { confirmOpen.value = false; pendingSide.value = null; schedule(); }
   function updateTravelerSide(value: TravelerSide) {
     if (blocked.value || value === travelerSide.value) return;
-    if (gameState.value?.history.length) { pendingSide.value = value; confirmOpen.value = true; return; }
-    travelerSide.value = value;
-    void startNewGame();
+    if (gameState.value?.history.length) { cancelDelay(); pendingSide.value = value; confirmOpen.value = true; return; }
+    void startNewGame(value);
   }
   function updateAiLevel(value: AiLevel) { if (!blocked.value) aiLevel.value = value; }
   async function recover() {
     if (session.retryAfter.value > 0) return;
     if (!gameState.value) await startNewGame();
-    else if (session.needsSync.value) await session.synchronize();
+    else if (session.needsSync.value) {
+      const state = await session.synchronize();
+      if (state) schedule();
+    }
     else if (aiTurn.value) await runAi();
     else await session.synchronize();
   }
@@ -119,7 +127,7 @@ export function useGameController(mode: "teaParty" | "lunarOrbit") {
   onMounted(() => { void startNewGame(); });
   onBeforeUnmount(cancelDelay);
   const { elementRef: boardPanelRef, heightStyle: boardHeightStyle } = useElementHeightCssVar("--game-board-panel-height");
-  return { ...session, confirmOpen, requestRestart, confirmRestart, cancelRestart, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves,
+  return { ...session, requestBusy: session.loading, confirmOpen, requestRestart, confirmRestart, cancelRestart, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves,
     showThreatMoves, showRemovalPreview, loading, aiThinking, canPlace, canUndo, errorMessage, statusPillText,
     startNewGame, placeAt, undoMove, updateTravelerSide, updateAiLevel, recover, recoveryLabel, boardPanelRef, boardHeightStyle,
     pieceShortName: (piece: Piece) => formatPieceShort(piece),

@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 const dialog = ref<HTMLDialogElement>();
 const { t } = useI18n();
-onMounted(() => dialog.value?.showModal());
+let previous: HTMLElement | null = null;
+onMounted(() => {
+  previous = document.activeElement as HTMLElement | null;
+  dialog.value?.showModal();
+});
+onBeforeUnmount(() => {
+  dialog.value?.close();
+  previous?.focus();
+});
 </script>
 
 <template>

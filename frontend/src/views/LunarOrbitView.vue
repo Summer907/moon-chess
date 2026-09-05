@@ -8,7 +8,7 @@ import GameStatusCard from "../components/game/GameStatusCard.vue";
 import LunarOrbitAnalysisCard from "../components/game/LunarOrbitAnalysisCard.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { useGameController } from "../utils/useGameController";
-const { confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, loading, aiThinking, errorMessage, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves, showThreatMoves, showRemovalPreview, canPlace, canUndo, statusPillText, startNewGame, undoMove, placeAt, updateTravelerSide, updateAiLevel, recover, recoveryLabel, retryAfter, boardPanelRef, boardHeightStyle, pieceShortName, pieceFullName, pieceClassName } = useGameController("lunarOrbit");
+const { requestBusy, confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, loading, aiThinking, errorMessage, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves, showThreatMoves, showRemovalPreview, canPlace, canUndo, statusPillText, startNewGame, undoMove, placeAt, updateTravelerSide, updateAiLevel, recover, recoveryLabel, retryAfter, boardPanelRef, boardHeightStyle, pieceShortName, pieceFullName, pieceClassName } = useGameController("lunarOrbit");
 </script>
 
 <template>
@@ -20,11 +20,11 @@ const { confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, l
     </div>
   </header>
 
-  <section v-if="errorMessage" class="error-message" role="alert"><p>{{ errorMessage }}</p><button :disabled="loading || retryAfter > 0" @click="recover">{{ recoveryLabel }} <span v-if="retryAfter">{{ t("recovery.countdown", { count: retryAfter }) }}</span></button></section>
+  <section v-if="errorMessage" class="error-message" role="alert"><p>{{ errorMessage }}</p><button :disabled="requestBusy || retryAfter > 0" @click="recover">{{ recoveryLabel }} <span v-if="retryAfter">{{ t("recovery.countdown", { count: retryAfter }) }}</span></button></section>
 
   <section v-if="gameState" class="game-main-layout" :style="boardHeightStyle">
     <div class="play-column">
-    <div class="turn-banner" role="status" aria-live="polite"><strong>{{ statusPillText }}</strong><span v-if="gameState.status === 'playing'">{{ t(loading || aiThinking ? "ux.wait" : "ux.choose") }}</span></div>
+    <div class="turn-banner" role="status" aria-live="polite"><strong>{{ statusPillText }}</strong><span v-if="gameState.status === 'playing'">{{ t(canPlace ? "ux.choose" : "ux.wait") }}</span></div>
     <div ref="boardPanelRef" class="game-board-slot">
       <div class="piece-legend"><span v-for="player in displayMap" :key="player.player"><i :class="player.pieceClass"></i>{{ player.name }}</span></div>
       <GameBoard
@@ -44,7 +44,7 @@ const { confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, l
 
     <div class="game-actions button-row" :aria-label="t('lunarOrbit.actions')">
       <button type="button" :disabled="loading" :title="t('lunarOrbit.restartTitle')" @click="requestRestart">
-        {{ t('lunarOrbit.restart') }}
+        {{ t(gameState.status === 'playing' ? 'lunarOrbit.restart' : 'ux.again') }}
       </button>
       <button type="button" :disabled="loading || !canUndo" :title="t('lunarOrbit.undoTitle')" @click="undoMove">
         {{ t('lunarOrbit.undo') }}

@@ -31,6 +31,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Retry-After", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"],
 )
 
 store = GameStore(
@@ -127,13 +128,11 @@ def get_hint(
     limit = settings.hard_ai_per_minute if level == "hard" else settings.ai_per_minute
     enforce_rate_limit(request, response, f"ai-{level}", limit, 60)
     try:
-        with store.locked(game_id) as game:
-            snapshot = game.clone()
-    except GameError as exc:
-        raise game_http_error(exc) from exc
-    try:
-        with ai_slot(level):
-            return build_ai_move_response(snapshot, level=level, seed=seed, auto_apply=False)
+        with store.pinned(game_id):
+            with store.locked(game_id) as game:
+                snapshot = game.clone()
+            with ai_slot(level):
+                return build_ai_move_response(snapshot, level=level, seed=seed, auto_apply=False)
     except GameError as exc:
         raise game_http_error(exc) from exc
 

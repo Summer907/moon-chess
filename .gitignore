@@ -13,3 +13,6 @@ dist/
 !frontend/.env.example
 
 docs/
+frontend/test-results/
+frontend/playwright-report/
+artifacts/

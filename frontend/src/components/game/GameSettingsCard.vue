@@ -28,7 +28,7 @@ const props = withDefaults(
   },
 );
 
-defineEmits<{
+const emit = defineEmits<{
   newGame: [];
   undo: [];
   "update:travelerSide": [value: TravelerSide];
@@ -44,10 +44,13 @@ const { t } = useI18n();
 const sideOptions = computed(() => [{ value: "first" as const, label: t("settings.first") }, { value: "second" as const, label: t("settings.second") }]);
 const levelOptions = computed(() => [{ value: "easy" as const, label: t("difficulty.easy") }, { value: "medium" as const, label: t("difficulty.medium") }, { value: "hard" as const, label: t("difficulty.hard") }]);
 const cardTitle = computed(() => props.title || t("settings.configuration"));
-const newLabel = computed(() => props.newGameLabel || t("teaParty.restart"));
-const newTitle = computed(() => props.newGameTitle || t("teaParty.restartTitle"));
-const undoLabelText = computed(() => props.undoLabel || t("teaParty.undo"));
-const undoTitleText = computed(() => props.undoTitle || t("teaParty.undoTitle"));
+function requestSide(event: Event, side: TravelerSide) {
+  const input = event.target as HTMLInputElement;
+  input.closest("fieldset")?.querySelectorAll<HTMLInputElement>('input[type="radio"]').forEach(radio => {
+    radio.checked = radio.value === props.travelerSide;
+  });
+  emit("update:travelerSide", side);
+}
 </script>
 
 <template>
@@ -66,7 +69,7 @@ const undoTitleText = computed(() => props.undoTitle || t("teaParty.undoTitle"))
             :value="item.value"
             :checked="travelerSide === item.value"
             :disabled="loading"
-            @change="$emit('update:travelerSide', item.value)"
+            @change="requestSide($event, item.value)"
           />
           <span>{{ item.label }}</span>
         </label>
@@ -136,6 +139,6 @@ const undoTitleText = computed(() => props.undoTitle || t("teaParty.undoTitle"))
       </div>
     </fieldset>
 
-    <p class="settings-note">{{ t("ux.settingsNote") }}</p>
+    <p class="settings-note">{{ t(showAiLevel ? "ux.settingsNote" : "ux.sideNote") }}</p>
   </section>
 </template>

@@ -7,7 +7,7 @@ import GameSettingsCard from "../components/game/GameSettingsCard.vue";
 import GameStatusCard from "../components/game/GameStatusCard.vue";
 import ConfirmDialog from "../components/ConfirmDialog.vue";
 import { useGameController } from "../utils/useGameController";
-const { confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, loading, aiThinking, errorMessage, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves, showThreatMoves, showRemovalPreview, canPlace, canUndo, statusPillText, startNewGame, undoMove, placeAt, updateTravelerSide, updateAiLevel, recover, recoveryLabel, retryAfter, boardPanelRef, boardHeightStyle, pieceShortName, pieceFullName, pieceClassName } = useGameController("teaParty");
+const { requestBusy, confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, loading, aiThinking, errorMessage, t, travelerSide, aiLevel, displayMap, showCellNumbers, showLegalMoves, showWinningMoves, showThreatMoves, showRemovalPreview, canPlace, canUndo, statusPillText, startNewGame, undoMove, placeAt, updateTravelerSide, updateAiLevel, recover, recoveryLabel, retryAfter, boardPanelRef, boardHeightStyle, pieceShortName, pieceFullName, pieceClassName } = useGameController("teaParty");
 </script>
 
 <template>
@@ -19,11 +19,11 @@ const { confirmOpen, requestRestart, confirmRestart, cancelRestart, gameState, l
     </div>
   </header>
 
-  <section v-if="errorMessage" class="error-message" role="alert"><p>{{ errorMessage }}</p><button :disabled="loading || retryAfter > 0" @click="recover">{{ recoveryLabel }} <span v-if="retryAfter">{{ t("recovery.countdown", { count: retryAfter }) }}</span></button></section>
+  <section v-if="errorMessage" class="error-message" role="alert"><p>{{ errorMessage }}</p><button :disabled="requestBusy || retryAfter > 0" @click="recover">{{ recoveryLabel }} <span v-if="retryAfter">{{ t("recovery.countdown", { count: retryAfter }) }}</span></button></section>
 
   <section v-if="gameState" class="game-main-layout" :style="boardHeightStyle">
     <div class="play-column">
-    <div class="turn-banner" role="status" aria-live="polite"><strong>{{ statusPillText }}</strong><span v-if="gameState.status === 'playing'">{{ t(loading || aiThinking ? "ux.wait" : "ux.choose") }}</span></div>
+    <div class="turn-banner" role="status" aria-live="polite"><strong>{{ statusPillText }}</strong><span v-if="gameState.status === 'playing'">{{ t(canPlace ? "ux.choose" : "ux.wait") }}</span></div>
     <div ref="boardPanelRef" class="game-board-slot">
       <div class="piece-legend"><span v-for="player in displayMap" :key="player.player"><i :class="player.pieceClass"></i>{{ player.name }}</span></div>
       <GameBoard
