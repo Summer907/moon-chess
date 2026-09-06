@@ -103,6 +103,10 @@ function isOpponentRealThreat(position: number): boolean {
     </div>
 
     <div class="board-stage" :class="{ 'is-inactive': disabled }">
+      <div class="board-aura" aria-hidden="true"></div>
+      <div class="board-ornaments" aria-hidden="true">
+        <span v-for="side in ['top', 'right', 'bottom', 'left']" :key="side" class="board-ornament" :class="`board-ornament--${side}`"></span>
+      </div>
       <div class="board-grid" :class="{ 'has-winner': winningLine }">
         <svg v-if="winningLine" class="winning-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
           <defs>

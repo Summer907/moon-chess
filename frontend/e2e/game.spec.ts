@@ -71,7 +71,7 @@ test("mobile draw opens result and home modes remain navigable", async ({ page }
     await page.locator(".game-cell").nth(cell - 1).click();
   }
   await expect(page.getByRole("region", { name: "对局结果" })).toContainText("平局");
-  await page.screenshot({ path: "../artifacts/ui/orbit-390-draw.png", fullPage: true });
+  await page.screenshot({ path: "../artifacts/ui/orbit-390-draw.png", fullPage: true, animations: "disabled" });
   await page.getByRole("link", { name: "← 返回银月之庭" }).click();
   await expect(page.getByRole("link", { name: "进入银月茶会 AI 对战" })).toBeVisible();
   await page.screenshot({ path: "../artifacts/ui/home-390.png", fullPage: true });

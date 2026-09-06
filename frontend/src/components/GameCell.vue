@@ -84,7 +84,7 @@ function ariaLabel(): string {
       class="cell-hints"
       aria-hidden="true"
     >
-      <span v-if="showLegalHighlight" class="cell-hint hint-legal">•</span>
+      <span v-if="showLegalHighlight" class="cell-hint hint-legal">{{ t('game.legal') }}</span>
       <span v-if="isCurrentWinningMove" class="cell-hint hint-win">◆ {{ t('game.winning') }}</span>
       <span v-if="isOpponentRealThreat" class="cell-hint hint-threat">▲ {{ t('game.threat') }}</span>
     </span>
